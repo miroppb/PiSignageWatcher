@@ -41,10 +41,12 @@ namespace PiSignageWatcher
         {
             DataTable dt = GetDataTable("SELECT user, pass FROM settings");
 
-            Dictionary<string, string> data = new Dictionary<string, string>();
-            data.Add("email", dt.Rows[0].ItemArray[0].ToString());
-            data.Add("password", dt.Rows[0].ItemArray[1].ToString());
-            data.Add("getToken", "true");
+            Dictionary<string, string> data = new Dictionary<string, string>
+            {
+                { "email", dt.Rows[0].ItemArray[0].ToString() },
+                { "password", dt.Rows[0].ItemArray[1].ToString() },
+                { "getToken", "true" }
+            };
 
             string json = SendRequest("/session", Method.POST, data);
 
@@ -97,19 +99,21 @@ namespace PiSignageWatcher
                         libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
                         Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
                         //add current file to playlist
-                        Asset_Files af = new Asset_Files();
-                        af.filename = file.Key;
-                        af.dragSelected = false;
-                        af.fullscreen = true;
-                        af.isVideo = true;
-                        af.selected = true;
-                        af.duration = Convert.ToInt32(rf.data.dbdata.duration);
-                        var resArray = new object[] { af };
+                        Asset_Files af = new Asset_Files
+                        {
+                            filename = file.Key,
+                            dragSelected = false,
+                            fullscreen = true,
+                            isVideo = true,
+                            selected = true,
+                            duration = Convert.ToInt32(rf.data.dbdata.duration)
+                        };
+                        object[] resArray = new object[] { af };
                         string playlist = SendRequest("/playlists/LEFT_TV", Method.POST, new { assets = resArray });
                         libmiroppb.Log("Added to playlist LEFT: " + file.Key + ", Response: " + playlist);
 
                         //add file to database
-                        ExecuteNonQuery("INSERT INTO files VALUES(\"" + file.Key + "\");");
+                        _ = ExecuteNonQuery("INSERT INTO files VALUES(\"" + file.Key + "\");");
                         libmiroppb.Log("Added " + file.Key + " to the database");
                     }
                 }
@@ -123,7 +127,7 @@ namespace PiSignageWatcher
                         libmiroppb.Log("Deleted file: " + a + ", Response: " + files);
 
                         //and database
-                        ExecuteNonQuery("DELETE FROM files WHERE filename = \"" + a + "\"");
+                        _ = ExecuteNonQuery("DELETE FROM files WHERE filename = \"" + a + "\"");
                         libmiroppb.Log("Deleted file " + a + " from database");
                     }
                 }
