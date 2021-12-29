@@ -619,5 +619,16 @@ namespace PiSignageWatcher
         }
 
         #endregion
+
+        private void checkNowToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            timerRefresh_Tick(null, null);
+        }
+
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            notifyIcon1.Dispose();
+            Application.Exit();
+        }
     }
 }
