@@ -88,6 +88,8 @@ namespace PiSignageWatcher
                         string up = Upload("/files", file.Key);
                         libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
 
+                        File.Delete(file.Key);
+                        libmiroppb.Log("Deleted file: " + file.Key);
 
                         Root_Files_Upload rfu = JsonConvert.DeserializeObject<Root_Files_Upload>(up);
                         //process upload
@@ -98,6 +100,7 @@ namespace PiSignageWatcher
                         string json = SendRequest("/files/" +file.Key, Method.GET, null);
                         libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
                         Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
+
                         //add current file to playlist
                         Asset_Files af = new Asset_Files
                         {
