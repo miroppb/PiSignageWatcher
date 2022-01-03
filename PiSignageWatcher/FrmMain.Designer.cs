@@ -46,6 +46,7 @@
             // 
             // notifyIcon1
             // 
+            this.notifyIcon1.ContextMenuStrip = this.contextMenuStrip1;
             this.notifyIcon1.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon1.Icon")));
             this.notifyIcon1.Text = "PiSignage";
             this.notifyIcon1.Visible = true;
@@ -61,14 +62,14 @@
             // checkNowToolStripMenuItem
             // 
             this.checkNowToolStripMenuItem.Name = "checkNowToolStripMenuItem";
-            this.checkNowToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.checkNowToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             this.checkNowToolStripMenuItem.Text = "Check Now";
             this.checkNowToolStripMenuItem.Click += new System.EventHandler(this.checkNowToolStripMenuItem_Click);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             this.exitToolStripMenuItem.Text = "Exit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 

@@ -18,9 +18,11 @@ namespace PiSignageWatcher
 {
     public partial class FrmMain : Form
     {
-        public const string APIUrl = Config.APIUrl;
+        private string APIUrl = null;
+        private string gDrive = null;
         protected string token = "";
-        protected string LEFT_group = Config.LEFT_group;
+        private Dictionary<string, string> groups = new Dictionary<string, string>();
+        private Dictionary<string, string> playlists = new Dictionary<string, string>();
 
         SQLiteConnection dbConnection;
 
@@ -33,8 +35,27 @@ namespace PiSignageWatcher
             libmiroppb.Log("Welcome to PiSignage Watcher! ~uWu~");
 
             dbConnection = new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
+            PopulateData();
 
             timerRefresh_Tick(null, null);
+        }
+
+        private void PopulateData()
+        {
+            //settings
+            DataTable dt = GetDataTable("SELECT api, gdrive FROM settings");
+            APIUrl = dt.Rows[0].ItemArray[0].ToString();
+            gDrive = dt.Rows[0].ItemArray[1].ToString();
+
+            //groups
+            dt = GetDataTable("SELECT * FROM groups");
+            foreach (DataRow dr in dt.Rows)
+                groups.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
+
+            //playlists
+            dt = GetDataTable("SELECT * FROM playlists");
+            foreach (DataRow dr in dt.Rows)
+                playlists.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
         }
 
         private bool refreshToken()
@@ -75,8 +96,8 @@ namespace PiSignageWatcher
                 //compare the db files with gd files
                 foreach (KeyValuePair<string, string> file in gd_files)
                 {
-                    //for each file that doesn't exist already (new file)
-                    if (!db_files.Contains(file.Key) && file.Key.StartsWith("LEFT"))  //change whenever
+                    //for each file that doesn't exist already (new file) and starts with a playlist "search" term
+                    if (!db_files.Contains(file.Key) && playlists.Keys.Contains(file.Key.Split(' ')[0]))
                     {
                         libmiroppb.Log("Working on: " + file.Key);
 
@@ -97,7 +118,7 @@ namespace PiSignageWatcher
                         libmiroppb.Log("PostUpload: " + file.Key + ", Response: " + post);
 
                         //we'll have only 1 file per TV, for now
-                        string json = SendRequest("/files/" +file.Key, Method.GET, null);
+                        string json = SendRequest("/files/" + file.Key, Method.GET, null);
                         libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
                         Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
 
@@ -112,8 +133,9 @@ namespace PiSignageWatcher
                             duration = Convert.ToInt32(rf.data.dbdata.duration)
                         };
                         object[] resArray = new object[] { af };
-                        string playlist = SendRequest("/playlists/LEFT_TV", Method.POST, new { assets = resArray });
-                        libmiroppb.Log("Added to playlist LEFT: " + file.Key + ", Response: " + playlist);
+                        string pl = playlists[file.Key.Split(' ')[0]]; //playlist associated with current file
+                        string playlist = SendRequest("/playlists/" + pl, Method.POST, new { assets = resArray });
+                        libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlist);
 
                         //add file to database
                         _ = ExecuteNonQuery("INSERT INTO files VALUES(\"" + file.Key + "\");");
@@ -134,10 +156,12 @@ namespace PiSignageWatcher
                         libmiroppb.Log("Deleted file " + a + " from database");
                     }
                 }
-                //Deploy
-                //LEFT
-                string groups = SendRequest("/groups/" + LEFT_group, Method.POST, new { deploy = true });
-                libmiroppb.Log("Deployed LEFT, Response: " + groups);
+                //Deploy each group
+                foreach (KeyValuePair<string, string> kvp in groups)
+                {
+                    string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true });
+                    libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
+                }
             }
         }
 
