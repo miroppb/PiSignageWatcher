@@ -10,3 +10,41 @@ PiSignage Watcher is an application that runs in the background, and does the fo
 - If a video is present on PiSignage but not on the Google Drive, the video is removed from PiSignage
 
 The login settings for PiSignage and file-tracking is kept in a sqlite database, and the API info/hashes are kept in a separate Config.cs file
+
+## Usage
+
+Create a db.db SQLite database file where the .exe will reside.
+
+```
+CREATE TABLE IF NOT EXISTS 'settings' (
+	'user'	TEXT,
+	'pass'	TEXT,
+	'api'	TEXT,
+	'gdrive'	TEXT
+);
+
+CREATE TABLE IF NOT EXISTS 'schedule' (
+	'id'	INTEGER,
+	'tv'	TEXT,
+	'day'	INTEGER,
+	'time'	TEXT,
+	'action'	INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS 'playlists' (
+	'search'	TEXT,
+	'name'	TEXT
+);
+
+CREATE TABLE IF NOT EXISTS 'groups' (
+	'name'	TEXT,
+	'hex'	TEXT
+);
+
+CREATE TABLE IF NOT EXISTS 'files' (
+	'filename'	TEXT
+);
+```
+
+## To-Do
+- Schedule
