@@ -23,6 +23,9 @@ namespace PiSignageWatcher
         protected string token = "";
         private Dictionary<string, string> groups = new Dictionary<string, string>();
         private Dictionary<string, string> playlists = new Dictionary<string, string>();
+        public enum ScheduleActions { TurnOffTV, TurnOnTV };
+        private List<Stuff> Action = new List<Stuff>();
+        Dictionary<string, string> tvs = new Dictionary<string, string>();
 
         SQLiteConnection dbConnection;
 
@@ -56,6 +59,11 @@ namespace PiSignageWatcher
             dt = GetDataTable("SELECT * FROM playlists");
             foreach (DataRow dr in dt.Rows)
                 playlists.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
+
+            //tvs
+            dt = GetDataTable("SELECT * FROM tvs");
+            foreach (DataRow dr in dt.Rows)
+                tvs.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
         }
 
         private bool refreshToken()
@@ -653,6 +661,47 @@ namespace PiSignageWatcher
         {
             notifyIcon1.Dispose();
             Application.Exit();
+        }
+
+        private void scheduleToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            FrmSchedule frm = new FrmSchedule();
+            frm.dbConnection.ConnectionString = dbConnection.ConnectionString;
+            frm.ValidTVs.Clear();
+            frm.ValidTVs.AddRange(tvs.Keys);
+            frm.ValidActions.Clear();
+            frm.ValidActions.AddRange(Enum.GetNames(typeof(ScheduleActions)));
+            frm.ShowDialog(this);
+
+            //re-read the schedules into dictionary
+            Action.Clear();
+
+            DataTable s = GetDataTable("SELECT tv, day, time, action FROM schedule");
+            miroppb.libmiroppb.Log("Using new schedule:");
+            foreach (DataRow z in s.Rows)
+            {
+                Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
+                //ActionDays.Add((DayOfWeek)Convert.ToInt32(z.ItemArray[1].ToString()));
+                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + z.ItemArray[2].ToString() + ", " + (z.ItemArray[3].ToString() == "0" ? "Off" : "On") + "]");
+            }
+        }
+
+        private void timerSchedule_Tick(object sender, EventArgs e)
+        {
+            //should be easy peasy right?
+            foreach (Stuff a in Action)
+            {
+                if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOffTV)
+                {
+                    miroppb.libmiroppb.Log("Turning Off Tv: " + a.Tv);
+                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = false });
+                }
+                else if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOnTV)
+                {
+                    miroppb.libmiroppb.Log("Turning On Tv: " + a.Tv);
+                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = true });
+                }
+            }
         }
     }
 }
