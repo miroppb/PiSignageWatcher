@@ -2,11 +2,11 @@
 
 PiSignage Watcher is an application that runs in the background, and does the following:
 - Checks a Google Drive folder for any new videos
-- If a video title starts with the word "LEFT" (for left TV)
-    - Downloads it
+- For each "search" term:
+    - Downloads video with fitting title
     - Uploads to PiSignage, and processes it
-    - Assigns video to the LEFT_TV Playlist
-    - Deploys the LEFT Group (pushes changes to the TVs)
+    - Assigns video to the appropriate Playlist
+    - Deploys the each Group (pushes changes to the TVs)
 - If a video is present on PiSignage but not on the Google Drive, the video is removed from PiSignage
 
 The login settings for PiSignage and file-tracking is kept in a sqlite database, along with the API info/hashes
