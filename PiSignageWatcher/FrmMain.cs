@@ -64,6 +64,18 @@ namespace PiSignageWatcher
             dt = GetDataTable("SELECT * FROM tvs");
             foreach (DataRow dr in dt.Rows)
                 tvs.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
+
+            //read schedules into dictionary
+            DataTable s = GetDataTable("SELECT tv, day, time, action FROM schedule");
+            miroppb.libmiroppb.Log("Using following schedule:");
+            foreach (DataRow z in s.Rows)
+            {
+                Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), DoW = (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
+                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())) + ", " + z.ItemArray[2].ToString() + ", " + (z.ItemArray[3].ToString() == "0" ? "Stop" : "Start") + "]");
+            }
+            timerSchedule.Enabled = true;
+            timerSchedule.Start();
+            miroppb.libmiroppb.Log("Schedule Timer started");
         }
 
         private bool refreshToken()
@@ -90,6 +102,8 @@ namespace PiSignageWatcher
             //lets get authenticated
             if (refreshToken())
             {
+                bool changes = false;
+
                 //get list of files
                 DataTable dt = GetDataTable("SELECT * FROM files");
                 libmiroppb.Log("Getting list of database files...");
@@ -148,6 +162,8 @@ namespace PiSignageWatcher
                         //add file to database
                         _ = ExecuteNonQuery("INSERT INTO files VALUES(\"" + file.Key + "\");");
                         libmiroppb.Log("Added " + file.Key + " to the database");
+
+                        changes = true;
                     }
                 }
                 foreach (string a in db_files)
@@ -158,17 +174,21 @@ namespace PiSignageWatcher
                         //remove db file from pisignage
                         string files = SendRequest("/files/" + a, Method.DELETE, null);
                         libmiroppb.Log("Deleted file: " + a + ", Response: " + files);
+                        changes = true;
 
                         //and database
                         _ = ExecuteNonQuery("DELETE FROM files WHERE filename = \"" + a + "\"");
                         libmiroppb.Log("Deleted file " + a + " from database");
                     }
                 }
-                //Deploy each group
-                foreach (KeyValuePair<string, string> kvp in groups)
+                //Deploy each group if something was changed
+                if (changes)
                 {
-                    string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true });
-                    libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
+                    foreach (KeyValuePair<string, string> kvp in groups)
+                    {
+                        string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true });
+                        libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
+                    }
                 }
             }
         }
@@ -680,8 +700,7 @@ namespace PiSignageWatcher
             miroppb.libmiroppb.Log("Using new schedule:");
             foreach (DataRow z in s.Rows)
             {
-                Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
-                //ActionDays.Add((DayOfWeek)Convert.ToInt32(z.ItemArray[1].ToString()));
+                Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), DoW = (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
                 miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + z.ItemArray[2].ToString() + ", " + (z.ItemArray[3].ToString() == "0" ? "Off" : "On") + "]");
             }
         }

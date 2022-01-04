@@ -61,6 +61,7 @@
             this.BtnRemove.TabIndex = 17;
             this.BtnRemove.Text = "Rem";
             this.BtnRemove.UseVisualStyleBackColor = true;
+            this.BtnRemove.Click += new System.EventHandler(this.BtnRemove_Click);
             // 
             // BtnAdd
             // 
@@ -70,6 +71,7 @@
             this.BtnAdd.TabIndex = 16;
             this.BtnAdd.Text = "Add";
             this.BtnAdd.UseVisualStyleBackColor = true;
+            this.BtnAdd.Click += new System.EventHandler(this.BtnAdd_Click);
             // 
             // DgvSchedule
             // 
@@ -86,6 +88,8 @@
             this.DgvSchedule.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.CellSelect;
             this.DgvSchedule.Size = new System.Drawing.Size(443, 158);
             this.DgvSchedule.TabIndex = 15;
+            this.DgvSchedule.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.DgvSchedule_CellDoubleClick);
+            this.DgvSchedule.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.DgvSchedule_CellValueChanged);
             // 
             // Miner
             // 
@@ -125,6 +129,7 @@
             this.BtnSave.TabIndex = 20;
             this.BtnSave.Text = "Save";
             this.BtnSave.UseVisualStyleBackColor = true;
+            this.BtnSave.Click += new System.EventHandler(this.BtnSave_Click);
             // 
             // FrmSchedule
             // 
@@ -133,8 +138,15 @@
             this.ClientSize = new System.Drawing.Size(523, 237);
             this.Controls.Add(this.BtnSave);
             this.Controls.Add(this.groupBox2);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
             this.Name = "FrmSchedule";
-            this.Text = "FrmSchedule";
+            this.ShowIcon = false;
+            this.ShowInTaskbar = false;
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.Text = "Edit Schedule";
+            this.Load += new System.EventHandler(this.FrmSchedule_Load);
             this.groupBox2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.DgvSchedule)).EndInit();
             this.ResumeLayout(false);

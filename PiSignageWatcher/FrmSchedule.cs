@@ -215,7 +215,7 @@ namespace PiSignageWatcher
                 if (e.ColumnIndex == 0)
                 {
                     string i = DgvSchedule.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
-                    ExecuteNonQuery("UPDATE schedule SET miner = \"" + i + "\" WHERE id = " + ActionIDs[e.RowIndex]);
+                    ExecuteNonQuery("UPDATE schedule SET tv = \"" + i + "\" WHERE id = " + ActionIDs[e.RowIndex]);
                 }
                 else if (e.ColumnIndex == 1)
                 {
