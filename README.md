@@ -56,8 +56,3 @@ Get the group ids from
 ```
 GET /groups
 ```
-
-Get the player ids from
-```
-GET /players
-```
