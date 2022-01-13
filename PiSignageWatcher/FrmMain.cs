@@ -89,7 +89,7 @@ namespace PiSignageWatcher
                 { "getToken", "true" }
             };
 
-            string json = SendRequest("/session", Method.POST, data);
+            string json = SendRequest("/session", Method.POST, data, false);
 
             Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
             token = t.token;
@@ -329,10 +329,14 @@ namespace PiSignageWatcher
             return response.Content;
         }
 
-        private string SendRequest(string url, RestSharp.Method method, object json)
+        private string SendRequest(string url, RestSharp.Method method, object json, bool sendtoken = true)
         {
             RestClient restClient = new RestClient(APIUrl);
-            RestRequest restRequest = new RestRequest(url + "?token=" + token);
+            RestRequest restRequest = null;
+            if (sendtoken)
+                restRequest = new RestRequest(url + "?token=" + token);
+            else
+                restRequest = new RestRequest(url);
             restRequest.RequestFormat = DataFormat.Json;
             restRequest.Method = method;
             if (json != null)
@@ -670,6 +674,79 @@ namespace PiSignageWatcher
             public bool fullscreen { get; set; }
         }
 
+        public class Group
+        {
+            public string name { get; set; }
+            public string _id { get; set; }
+        }
+
+        public class Object
+        {
+            public Group group { get; set; }
+            public CreatedBy createdBy { get; set; }
+            public object lastUpload { get; set; }
+            public bool newSocketIo { get; set; }
+            public bool webSocket { get; set; }
+            public bool registered { get; set; }
+            public bool serverServiceDisabled { get; set; }
+            public List<object> labels { get; set; }
+            public string installation { get; set; }
+            public bool licensed { get; set; }
+            public bool cecTvStatus { get; set; }
+            public bool disabled { get; set; }
+            public string _id { get; set; }
+            public string version { get; set; }
+            public string platform_version { get; set; }
+            public string cpuSerialNumber { get; set; }
+            public string myIpAddress { get; set; }
+            public string ethMac { get; set; }
+            public string wifiMac { get; set; }
+            public string ip { get; set; }
+            public bool playlistOn { get; set; }
+            public string currentPlaylist { get; set; }
+            public object playlistStarttime { get; set; }
+            public string diskSpaceUsed { get; set; }
+            public string diskSpaceAvailable { get; set; }
+            public string duration { get; set; }
+            public bool tvStatus { get; set; }
+            public DateTime lastReported { get; set; }
+            public string socket { get; set; }
+            public DateTime createdAt { get; set; }
+            public bool isConnected { get; set; }
+            public int __v { get; set; }
+            public string TZ { get; set; }
+            public string name { get; set; }
+            public bool syncInProgress { get; set; }
+            public string wgetSpeed { get; set; }
+            public string uptime { get; set; }
+            public string piTemperature { get; set; }
+            public string wgetBytes { get; set; }
+        }
+
+        public class CurrentVersion
+        {
+            public string version { get; set; }
+            public string versionP2 { get; set; }
+        }
+
+        public class Data_Player
+        {
+            public List<Object> objects { get; set; }
+            public int page { get; set; }
+            public int pages { get; set; }
+            public int count { get; set; }
+            public CurrentVersion currentVersion { get; set; }
+        }
+
+        public class Root_Player
+        {
+            public string stat_message { get; set; }
+            public Data_Player data { get; set; }
+            public bool success { get; set; }
+        }
+
+
+
         #endregion
 
         private void checkNowToolStripMenuItem_Click(object sender, EventArgs e)
@@ -713,14 +790,27 @@ namespace PiSignageWatcher
                 if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOffTV)
                 {
                     miroppb.libmiroppb.Log("Turning Off Tv: " + a.Tv);
-                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = false });
+                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = true }); //true is off
                 }
                 else if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOnTV)
                 {
                     miroppb.libmiroppb.Log("Turning On Tv: " + a.Tv);
-                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = true });
+                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = false }); //false is on
                 }
             }
+        }
+
+        private void showPlayerIDsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            FrmPlayers frm = new FrmPlayers();
+            string json = SendRequest("/players", Method.GET, null);
+            Root_Player rp = JsonConvert.DeserializeObject<Root_Player>(json);
+            foreach (Object obj in rp.data.objects)
+            {
+                frm.DgvPlayers.Rows.Add(obj.name, obj._id);
+                libmiroppb.Log("Showing player name: " + obj.name + ", id:" + obj._id);
+            }
+            frm.ShowDialog();
         }
     }
 }
