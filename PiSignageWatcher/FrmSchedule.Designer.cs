@@ -43,6 +43,9 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox2.Controls.Add(this.BtnRemove);
             this.groupBox2.Controls.Add(this.BtnAdd);
             this.groupBox2.Controls.Add(this.DgvSchedule);
@@ -55,6 +58,7 @@
             // 
             // BtnRemove
             // 
+            this.BtnRemove.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.BtnRemove.Location = new System.Drawing.Point(452, 65);
             this.BtnRemove.Name = "BtnRemove";
             this.BtnRemove.Size = new System.Drawing.Size(40, 23);
@@ -65,6 +69,7 @@
             // 
             // BtnAdd
             // 
+            this.BtnAdd.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.BtnAdd.Location = new System.Drawing.Point(452, 36);
             this.BtnAdd.Name = "BtnAdd";
             this.BtnAdd.Size = new System.Drawing.Size(40, 23);
@@ -77,6 +82,9 @@
             // 
             this.DgvSchedule.AllowUserToAddRows = false;
             this.DgvSchedule.AllowUserToDeleteRows = false;
+            this.DgvSchedule.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.DgvSchedule.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.DgvSchedule.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.Miner,
@@ -120,8 +128,7 @@
             // 
             // BtnSave
             // 
-            this.BtnSave.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+            this.BtnSave.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.BtnSave.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.BtnSave.Location = new System.Drawing.Point(224, 198);
             this.BtnSave.Name = "BtnSave";
@@ -138,9 +145,9 @@
             this.ClientSize = new System.Drawing.Size(523, 237);
             this.Controls.Add(this.BtnSave);
             this.Controls.Add(this.groupBox2);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
+            this.MinimumSize = new System.Drawing.Size(539, 276);
             this.Name = "FrmSchedule";
             this.ShowIcon = false;
             this.ShowInTaskbar = false;
