@@ -13,6 +13,7 @@ using System.Threading;
 using System.Windows.Forms;
 using RestSharp;
 using miroppb;
+using System.Threading.Tasks;
 
 namespace PiSignageWatcher
 {
@@ -97,7 +98,7 @@ namespace PiSignageWatcher
             return true;
         }
 
-        private void timerRefresh_Tick(object sender, EventArgs e)
+        private async void timerRefresh_Tick(object sender, EventArgs e)
         {
             //lets get authenticated
             if (refreshToken())
@@ -128,7 +129,9 @@ namespace PiSignageWatcher
                         libmiroppb.Log("Downloaded: " + file.Key);
 
                         //and then upload to pisignage
-                        string up = Upload("/files", file.Key);
+                        string up = "";
+                        while (up == "") //1.20.22 In case uploading fails (for unknown reason)
+                            up = Upload("/files", file.Key);
                         libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
 
                         File.Delete(file.Key);
@@ -184,9 +187,11 @@ namespace PiSignageWatcher
                 //Deploy each group if something was changed
                 if (changes)
                 {
+                    libmiroppb.Log("Waiting 30 seconds...");
+                    await Task.Delay(30000); //1.30.22 Waiting 30 seconds for 
                     foreach (KeyValuePair<string, string> kvp in groups)
                     {
-                        string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true });
+                        string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true, orientation = "landscape", resolution = "auto", exportAssets = false });
                         libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
                     }
                 }
@@ -231,20 +236,24 @@ namespace PiSignageWatcher
             listRequest.Q = "'" + announcements_id + "' in parents";
 
             // List files.
-            IList<Google.Apis.Drive.v3.Data.File> files = listRequest.Execute()
-                .Files;
-            Console.WriteLine("Files:");
-            if (files != null && files.Count > 0)
+            try
             {
-                foreach (var file in files)
+                IList<Google.Apis.Drive.v3.Data.File> files = listRequest.Execute()
+               .Files;
+                Console.WriteLine("Files:");
+                if (files != null && files.Count > 0)
                 {
-                    gd_files.Add(file.Name, file.Id);
+                    foreach (var file in files)
+                    {
+                        gd_files.Add(file.Name, file.Id);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("No files found.");
                 }
             }
-            else
-            {
-                Console.WriteLine("No files found.");
-            }
+            catch { Application.Restart(); }
             return gd_files;
         }
 
