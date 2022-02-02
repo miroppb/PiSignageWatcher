@@ -821,5 +821,34 @@ namespace PiSignageWatcher
             }
             frm.ShowDialog();
         }
+
+        private void onToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            libmiroppb.Log("Turning all On");
+            foreach (KeyValuePair<string, string> kv in tvs)
+            {
+                miroppb.libmiroppb.Log("Turning On Tv: " + kv.Key);
+                SendRequest("/pitv/" + kv.Value, Method.POST, new { status = false }); //false is on
+            }
+        }
+
+        private void offToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            libmiroppb.Log("Turning all Off");
+            foreach (KeyValuePair<string, string> kv in tvs)
+            {
+                miroppb.libmiroppb.Log("Turning Off Tv: " + kv.Key);
+                SendRequest("/pitv/" + kv.Value, Method.POST, new { status = true }); //false is on
+            }
+        }
+
+        private void reDeployAllToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (KeyValuePair<string, string> kvp in groups)
+            {
+                string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true, orientation = "landscape", resolution = "auto", exportAssets = false });
+                libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
+            }
+        }
     }
 }

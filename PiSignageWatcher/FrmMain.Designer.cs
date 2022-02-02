@@ -34,10 +34,14 @@
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.checkNowToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.showPlayerIDsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.scheduleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.timerSchedule = new System.Windows.Forms.Timer(this.components);
-            this.showPlayerIDsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.turnAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.onToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.offToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.reDeployAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.contextMenuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -59,10 +63,12 @@
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.checkNowToolStripMenuItem,
             this.showPlayerIDsToolStripMenuItem,
+            this.reDeployAllToolStripMenuItem,
+            this.turnAllToolStripMenuItem,
             this.scheduleToolStripMenuItem,
             this.exitToolStripMenuItem});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(181, 114);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(181, 158);
             // 
             // checkNowToolStripMenuItem
             // 
@@ -70,6 +76,13 @@
             this.checkNowToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.checkNowToolStripMenuItem.Text = "Check Now";
             this.checkNowToolStripMenuItem.Click += new System.EventHandler(this.checkNowToolStripMenuItem_Click);
+            // 
+            // showPlayerIDsToolStripMenuItem
+            // 
+            this.showPlayerIDsToolStripMenuItem.Name = "showPlayerIDsToolStripMenuItem";
+            this.showPlayerIDsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.showPlayerIDsToolStripMenuItem.Text = "Show Player IDs";
+            this.showPlayerIDsToolStripMenuItem.Click += new System.EventHandler(this.showPlayerIDsToolStripMenuItem_Click);
             // 
             // scheduleToolStripMenuItem
             // 
@@ -90,12 +103,35 @@
             this.timerSchedule.Interval = 60000;
             this.timerSchedule.Tick += new System.EventHandler(this.timerSchedule_Tick);
             // 
-            // showPlayerIDsToolStripMenuItem
+            // turnAllToolStripMenuItem
             // 
-            this.showPlayerIDsToolStripMenuItem.Name = "showPlayerIDsToolStripMenuItem";
-            this.showPlayerIDsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.showPlayerIDsToolStripMenuItem.Text = "Show Player IDs";
-            this.showPlayerIDsToolStripMenuItem.Click += new System.EventHandler(this.showPlayerIDsToolStripMenuItem_Click);
+            this.turnAllToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.onToolStripMenuItem,
+            this.offToolStripMenuItem});
+            this.turnAllToolStripMenuItem.Name = "turnAllToolStripMenuItem";
+            this.turnAllToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.turnAllToolStripMenuItem.Text = "Turn All ->";
+            // 
+            // onToolStripMenuItem
+            // 
+            this.onToolStripMenuItem.Name = "onToolStripMenuItem";
+            this.onToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.onToolStripMenuItem.Text = "On";
+            this.onToolStripMenuItem.Click += new System.EventHandler(this.onToolStripMenuItem_Click);
+            // 
+            // offToolStripMenuItem
+            // 
+            this.offToolStripMenuItem.Name = "offToolStripMenuItem";
+            this.offToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.offToolStripMenuItem.Text = "Off";
+            this.offToolStripMenuItem.Click += new System.EventHandler(this.offToolStripMenuItem_Click);
+            // 
+            // reDeployAllToolStripMenuItem
+            // 
+            this.reDeployAllToolStripMenuItem.Name = "reDeployAllToolStripMenuItem";
+            this.reDeployAllToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.reDeployAllToolStripMenuItem.Text = "Re-Deploy All";
+            this.reDeployAllToolStripMenuItem.Click += new System.EventHandler(this.reDeployAllToolStripMenuItem_Click);
             // 
             // FrmMain
             // 
@@ -119,6 +155,10 @@
         private System.Windows.Forms.ToolStripMenuItem scheduleToolStripMenuItem;
         private System.Windows.Forms.Timer timerSchedule;
         private System.Windows.Forms.ToolStripMenuItem showPlayerIDsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem turnAllToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem onToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem offToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem reDeployAllToolStripMenuItem;
     }
 }
 
