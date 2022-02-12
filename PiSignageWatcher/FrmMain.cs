@@ -796,15 +796,17 @@ namespace PiSignageWatcher
             //should be easy peasy right?
             foreach (Stuff a in Action)
             {
-                miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
-                await Task.Delay(10000);
                 if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOffTV)
                 {
+                    miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
+                    await Task.Delay(10000);
                     miroppb.libmiroppb.Log("Turning Off Tv: " + a.Tv);
                     SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = true }); //true is off
                 }
                 else if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOnTV)
                 {
+                    miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
+                    await Task.Delay(10000);
                     miroppb.libmiroppb.Log("Turning On Tv: " + a.Tv);
                     SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = false }); //false is on
                 }
