@@ -791,11 +791,13 @@ namespace PiSignageWatcher
             }
         }
 
-        private void timerSchedule_Tick(object sender, EventArgs e)
+        private async void timerSchedule_Tick(object sender, EventArgs e)
         {
             //should be easy peasy right?
             foreach (Stuff a in Action)
             {
+                miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
+                await Task.Delay(10000);
                 if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOffTV)
                 {
                     miroppb.libmiroppb.Log("Turning Off Tv: " + a.Tv);
@@ -822,21 +824,25 @@ namespace PiSignageWatcher
             frm.ShowDialog();
         }
 
-        private void onToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void onToolStripMenuItem_Click(object sender, EventArgs e)
         {
             libmiroppb.Log("Turning all On");
             foreach (KeyValuePair<string, string> kv in tvs)
             {
+                miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests...
+                await Task.Delay(10000);
                 miroppb.libmiroppb.Log("Turning On Tv: " + kv.Key);
                 SendRequest("/pitv/" + kv.Value, Method.POST, new { status = false }); //false is on
             }
         }
 
-        private void offToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void offToolStripMenuItem_Click(object sender, EventArgs e)
         {
             libmiroppb.Log("Turning all Off");
             foreach (KeyValuePair<string, string> kv in tvs)
             {
+                miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
+                await Task.Delay(10000);
                 miroppb.libmiroppb.Log("Turning Off Tv: " + kv.Key);
                 SendRequest("/pitv/" + kv.Value, Method.POST, new { status = true }); //false is on
             }
