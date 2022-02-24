@@ -79,7 +79,7 @@ namespace PiSignageWatcher
             miroppb.libmiroppb.Log("Schedule Timer started");
         }
 
-        private bool refreshToken()
+        private async Task<bool> refreshToken()
         {
             DataTable dt = GetDataTable("SELECT user, pass FROM settings");
 
@@ -93,6 +93,14 @@ namespace PiSignageWatcher
             string json = SendRequest("/session", Method.POST, data, false);
 
             Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
+            while (t == null)
+            {
+                libmiroppb.Log("Token not provided, retrying after 1 minute...");
+                //retrying after a few minutes... //2.24.22
+                await Task.Delay(60000);
+                json = SendRequest("/session", Method.POST, data, false);
+                t = JsonConvert.DeserializeObject<Root_Session>(json);
+            }
             token = t.token;
             libmiroppb.Log("Refreshed token: " + token);
             return true;
@@ -101,7 +109,7 @@ namespace PiSignageWatcher
         private async void timerRefresh_Tick(object sender, EventArgs e)
         {
             //lets get authenticated
-            if (refreshToken())
+            if (await refreshToken())
             {
                 bool changes = false;
 
