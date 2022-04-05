@@ -15,6 +15,7 @@ namespace PiSignageWatcher
         static void Main()
         {
             Application.EnableVisualStyles();
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.SetCompatibleTextRenderingDefault(false);
             FrmMain frm = new FrmMain();
             Application.Run();

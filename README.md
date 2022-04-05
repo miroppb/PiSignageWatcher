@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS 'groups' (
 );
 
 CREATE TABLE IF NOT EXISTS 'files' (
-	'filename'	TEXT
+	'filename'	TEXT,
+	'playlist'	TEXT
 );
 
 CREATE TABLE 'tvs' (

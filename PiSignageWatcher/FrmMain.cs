@@ -24,7 +24,6 @@ namespace PiSignageWatcher
         protected string token = "";
         private Dictionary<string, string> groups = new Dictionary<string, string>();
         private Dictionary<string, string> playlists = new Dictionary<string, string>();
-        public enum ScheduleActions { TurnOffTV, TurnOnTV };
         private List<Stuff> Action = new List<Stuff>();
         Dictionary<string, string> tvs = new Dictionary<string, string>();
 
@@ -71,8 +70,11 @@ namespace PiSignageWatcher
             miroppb.libmiroppb.Log("Using following schedule:");
             foreach (DataRow z in s.Rows)
             {
+                string action = "Stop";
+                if (z.ItemArray[3].ToString() == "1") { action = "Start"; }
+                else if (z.ItemArray[3].ToString() == "2") { action = "Reboot"; }
                 Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), DoW = (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
-                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())) + ", " + z.ItemArray[2].ToString() + ", " + (z.ItemArray[3].ToString() == "0" ? "Stop" : "Start") + "]");
+                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())) + ", " + z.ItemArray[2].ToString() + ", " + action + "]");
             }
             timerSchedule.Enabled = true;
             timerSchedule.Start();
@@ -143,12 +145,13 @@ namespace PiSignageWatcher
                         libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
 
                         File.Delete(file.Key);
-                        libmiroppb.Log("Deleted file: " + file.Key);
+                        libmiroppb.Log("Deleted local file: " + file.Key);
 
                         Root_Files_Upload rfu = JsonConvert.DeserializeObject<Root_Files_Upload>(up);
                         //process upload
                         string post = SendRequest("/postupload", Method.POST, new { files = rfu.data });
                         libmiroppb.Log("PostUpload: " + file.Key + ", Response: " + post);
+                        await Task.Delay(1000);
 
                         //we'll have only 1 file per TV, for now
                         string json = SendRequest("/files/" + file.Key, Method.GET, null);
@@ -171,7 +174,7 @@ namespace PiSignageWatcher
                         libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlist);
 
                         //add file to database
-                        _ = ExecuteNonQuery("INSERT INTO files VALUES(\"" + file.Key + "\");");
+                        _ = ExecuteNonQuery("INSERT INTO files VALUES(\"" + file.Key + "\", \"" + pl + "\");");
                         libmiroppb.Log("Added " + file.Key + " to the database");
 
                         changes = true;
@@ -195,10 +198,10 @@ namespace PiSignageWatcher
                 //Deploy each group if something was changed
                 if (changes)
                 {
-                    libmiroppb.Log("Waiting 30 seconds...");
-                    await Task.Delay(30000); //1.30.22 Waiting 30 seconds for 
                     foreach (KeyValuePair<string, string> kvp in groups)
                     {
+                        libmiroppb.Log("Waiting 30 seconds...");
+                        await Task.Delay(30000); //1.30.22 Waiting 30 seconds for 
                         string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true, orientation = "landscape", resolution = "auto", exportAssets = false });
                         libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
                     }
@@ -784,7 +787,7 @@ namespace PiSignageWatcher
             frm.ValidTVs.Clear();
             frm.ValidTVs.AddRange(tvs.Keys);
             frm.ValidActions.Clear();
-            frm.ValidActions.AddRange(Enum.GetNames(typeof(ScheduleActions)));
+            frm.ValidActions.AddRange(Enum.GetNames(typeof(Stuff.ScheduleActions)));
             frm.ShowDialog(this);
 
             //re-read the schedules into dictionary
@@ -794,8 +797,11 @@ namespace PiSignageWatcher
             miroppb.libmiroppb.Log("Using new schedule:");
             foreach (DataRow z in s.Rows)
             {
+                string action = "Stop";
+                if (z.ItemArray[3].ToString() == "1") { action = "Start"; }
+                else if (z.ItemArray[3].ToString() == "2") { action = "Reboot"; }
                 Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), DoW = (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
-                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + z.ItemArray[2].ToString() + ", " + (z.ItemArray[3].ToString() == "0" ? "Off" : "On") + "]");
+                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())) + ", " + z.ItemArray[2].ToString() + ", " + action + "]");
             }
         }
 
@@ -817,6 +823,13 @@ namespace PiSignageWatcher
                     await Task.Delay(10000);
                     miroppb.libmiroppb.Log("Turning On Tv: " + a.Tv);
                     SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = false }); //false is on
+                }
+                else if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.Reboot)
+                {
+                    miroppb.libmiroppb.Log("Waiting 10 seconds...");
+                    await Task.Delay(10000);
+                    miroppb.libmiroppb.Log("Rebooting TV: " + a.Tv);
+                    SendRequest("/pishell/" + tvs[a.Tv], Method.POST, new { cmd = "shutdown -r now" });
                 }
             }
         }
@@ -858,11 +871,26 @@ namespace PiSignageWatcher
             }
         }
 
-        private void reDeployAllToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void reDeployAllToolStripMenuItem_Click(object sender, EventArgs e)
         {
             foreach (KeyValuePair<string, string> kvp in groups)
             {
-                string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true, orientation = "landscape", resolution = "auto", exportAssets = false });
+                libmiroppb.Log("Waiting 30 seconds...");
+                await Task.Delay(30000); //1.30.22 Waiting 30 seconds for 
+                //get file with KEY
+                DataTable dt = GetDataTable("SELECT filename FROM files WHERE playlist = '" + kvp.Key + "'");
+                string group = SendRequest("/groups/" + kvp.Value, Method.POST,
+                    new {
+                        deploy = true,
+                        orientation = "landscape",
+                        resolution = "auto",
+                        exportAssets = false,
+                        assets = new string[] {
+                            dt.Rows[0].ItemArray[0].ToString(),
+                            "__" + kvp.Key + ".json",
+                            "custom_layout.html"
+                        },
+                    });
                 libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
             }
         }
