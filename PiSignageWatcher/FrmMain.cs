@@ -116,11 +116,12 @@ namespace PiSignageWatcher
                 bool changes = false;
 
                 //get list of files
+                libmiroppb.Log("Getting list of Google Drive files...");
+                Dictionary<string, string> gd_files = GetGoogleDriveFiles();
+                if (gd_files == null) { return; }
+
                 DataTable dt = GetDataTable("SELECT * FROM files");
                 libmiroppb.Log("Getting list of database files...");
-
-                Dictionary<string, string> gd_files = GetGoogleDriveFiles();
-                libmiroppb.Log("Getting list of Google Drive files...");
 
                 List<string> db_files = new List<string>();
                 libmiroppb.Log("DB files:");
@@ -223,12 +224,33 @@ namespace PiSignageWatcher
                 // The file token.json stores the user's access and refresh tokens, and is created
                 // automatically when the authorization flow completes for the first time.
                 string credPath = "token.json";
-                credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+
+                //Using this method, to timeout if user doesn't respond to Google Authorization fast enough
+                UserCredential cred = null;
+                var thread = new Thread(() =>
+                    cred = (GoogleWebAuthorizationBroker.AuthorizeAsync(
+                        GoogleClientSecrets.FromStream(stream).Secrets,
+                        Scopes,
+                        "user",
+                        CancellationToken.None,
+                        new FileDataStore(credPath)).Result)
+                    )
+                { IsBackground = true };
+                thread.Start();
+                if (!thread.Join(120000))
+                {
+                    libmiroppb.Log("Timed-out. User didn't accept Google Authentication in time...");
+                    return null;
+                }
+                else
+                    credential = cred;
+
+                /*credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
                     GoogleClientSecrets.FromStream(stream).Secrets,
                     Scopes,
                     "user",
                     CancellationToken.None,
-                    new FileDataStore(credPath, true)).Result;
+                    new FileDataStore(credPath, true)).Result;*/
                 Console.WriteLine("Credential file saved to: " + credPath);
             }
 
