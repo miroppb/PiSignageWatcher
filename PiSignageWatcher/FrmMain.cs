@@ -119,6 +119,7 @@ namespace PiSignageWatcher
                 libmiroppb.Log("Getting list of Google Drive files...");
                 Dictionary<string, string> gd_files = GetGoogleDriveFiles();
                 if (gd_files == null) { return; }
+                else { foreach (string file in gd_files.Keys) { libmiroppb.Log(file); } } //print each GD file to log
 
                 DataTable dt = GetDataTable("SELECT * FROM files");
                 libmiroppb.Log("Getting list of database files...");
