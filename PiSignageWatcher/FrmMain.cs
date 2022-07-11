@@ -14,6 +14,7 @@ using System.Windows.Forms;
 using RestSharp;
 using miroppb;
 using System.Threading.Tasks;
+using System.Net.Http;
 
 namespace PiSignageWatcher
 {
@@ -21,6 +22,7 @@ namespace PiSignageWatcher
     {
         private string APIUrl = null;
         private string gDrive = null;
+        private string Prowl = null;
         protected string token = "";
         private Dictionary<string, string> groups = new Dictionary<string, string>();
         private Dictionary<string, string> playlists = new Dictionary<string, string>();
@@ -40,20 +42,25 @@ namespace PiSignageWatcher
             dbConnection = new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
             PopulateData();
 
-            timerRefresh_Tick(null, null);
+            //timerRefresh_Tick(null, null);
         }
 
         private void PopulateData()
         {
             //settings
-            DataTable dt = GetDataTable("SELECT api, gdrive FROM settings");
+            DataTable dt = GetDataTable("SELECT api, gdrive, prowl FROM settings");
             APIUrl = dt.Rows[0].ItemArray[0].ToString();
             gDrive = dt.Rows[0].ItemArray[1].ToString();
+            Prowl = dt.Rows[0].ItemArray[2].ToString();
 
             //groups
             dt = GetDataTable("SELECT * FROM groups");
+            (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Clear();
             foreach (DataRow dr in dt.Rows)
+            {
                 groups.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
+                (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Add(dr.ItemArray[0].ToString(), null, reDeployGroup);
+            }
 
             //playlists
             dt = GetDataTable("SELECT * FROM playlists");
@@ -135,16 +142,24 @@ namespace PiSignageWatcher
                     if (!db_files.Contains(file.Key) && playlists.Keys.Contains(file.Key.Split(' ')[0]))
                     {
                         libmiroppb.Log("Working on: " + file.Key);
+                        _ = SendNotificationAsync("Working on " + file.Key);
 
                         //if gd file exists but db doesnt, we need to download
                         GoogleDownloadFile(file.Value, file.Key);
                         libmiroppb.Log("Downloaded: " + file.Key);
 
+                        File.Move(file.Key, file.Key.Replace(",", ""));
+
                         //and then upload to pisignage
                         string up = "";
                         while (up == "") //1.20.22 In case uploading fails (for unknown reason)
+                        {
                             up = Upload("/files", file.Key);
+                            libmiroppb.Log("Upload attempt: " + file.Key + ", Response: " + up);
+                            _ = SendNotificationAsync("Upload attempt " + file.Key);
+                        }
                         libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
+                        _ = SendNotificationAsync("Uploaded "+ file.Key);
 
                         File.Delete(file.Key);
                         libmiroppb.Log("Deleted local file: " + file.Key);
@@ -237,10 +252,12 @@ namespace PiSignageWatcher
                         new FileDataStore(credPath)).Result)
                     )
                 { IsBackground = true };
+                _ = SendNotificationAsync("Google Authentication needed...");
                 thread.Start();
                 if (!thread.Join(120000))
                 {
                     libmiroppb.Log("Timed-out. User didn't accept Google Authentication in time...");
+                    
                     return null;
                 }
                 else
@@ -287,7 +304,7 @@ namespace PiSignageWatcher
                     Console.WriteLine("No files found.");
                 }
             }
-            catch { Application.Restart(); }
+            catch { libmiroppb.Log("GD Didn't return any files..."); return null; }
             return gd_files;
         }
 
@@ -894,28 +911,46 @@ namespace PiSignageWatcher
             }
         }
 
-        private async void reDeployAllToolStripMenuItem_Click(object sender, EventArgs e)
+        private void reDeployGroup(object sender, EventArgs e)
         {
-            foreach (KeyValuePair<string, string> kvp in groups)
-            {
-                libmiroppb.Log("Waiting 30 seconds...");
-                await Task.Delay(30000); //1.30.22 Waiting 30 seconds for 
-                //get file with KEY
-                DataTable dt = GetDataTable("SELECT filename FROM files WHERE playlist = '" + kvp.Key + "'");
-                string group = SendRequest("/groups/" + kvp.Value, Method.POST,
-                    new {
-                        deploy = true,
-                        orientation = "landscape",
-                        resolution = "auto",
-                        exportAssets = false,
-                        assets = new string[] {
+            ToolStripItem i = (sender as ToolStripItem);
+            reDeployGroup(i.Text);
+        }
+
+        private void reDeployGroup(string groupID)
+        {
+            //get file with KEY
+            DataTable dt = GetDataTable($"SELECT filename FROM files WHERE playlist = '{groupID}'");
+            string group = SendRequest("/groups/" + groups[groupID], Method.POST,
+                new
+                {
+                    deploy = true,
+                    orientation = "landscape",
+                    resolution = "auto",
+                    exportAssets = false,
+                    assets = new string[] {
                             dt.Rows[0].ItemArray[0].ToString(),
-                            "__" + kvp.Key + ".json",
+                            "__" + groups[groupID] + ".json",
                             "custom_layout.html"
-                        },
-                    });
-                libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
-            }
+                    },
+                });
+            libmiroppb.Log($"Deployed {groupID}, Response: {group}");
+        }
+
+        private async Task SendNotificationAsync(string text)
+        {
+            var values = new Dictionary<string, string>
+            {
+                { "apikey", Prowl },
+                { "application", "PiSiagnage Watcher" },
+                { "description", text },
+            };
+
+            var content = new FormUrlEncodedContent(values);
+            HttpClient client = new HttpClient();
+            var response = await client.PostAsync("https://api.prowlapp.com/publicapi/add", content);
+
+            var responseString = await response.Content.ReadAsStringAsync();
         }
     }
 }
