@@ -48,6 +48,7 @@
             // 
             // timerRefresh
             // 
+            this.timerRefresh.Enabled = true;
             this.timerRefresh.Interval = 3600000;
             this.timerRefresh.Tick += new System.EventHandler(this.timerRefresh_Tick);
             // 
@@ -68,19 +69,19 @@
             this.scheduleToolStripMenuItem,
             this.exitToolStripMenuItem});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(181, 158);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(158, 136);
             // 
             // checkNowToolStripMenuItem
             // 
             this.checkNowToolStripMenuItem.Name = "checkNowToolStripMenuItem";
-            this.checkNowToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.checkNowToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.checkNowToolStripMenuItem.Text = "Check Now";
             this.checkNowToolStripMenuItem.Click += new System.EventHandler(this.checkNowToolStripMenuItem_Click);
             // 
             // showPlayerIDsToolStripMenuItem
             // 
             this.showPlayerIDsToolStripMenuItem.Name = "showPlayerIDsToolStripMenuItem";
-            this.showPlayerIDsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.showPlayerIDsToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.showPlayerIDsToolStripMenuItem.Text = "Show Player IDs";
             this.showPlayerIDsToolStripMenuItem.Click += new System.EventHandler(this.showPlayerIDsToolStripMenuItem_Click);
             // 
@@ -89,7 +90,7 @@
             this.reDeplotToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.item1ToolStripMenuItem});
             this.reDeplotToolStripMenuItem.Name = "reDeplotToolStripMenuItem";
-            this.reDeplotToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.reDeplotToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.reDeplotToolStripMenuItem.Text = "Re-Deploy ->";
             // 
             // item1ToolStripMenuItem
@@ -104,7 +105,7 @@
             this.onToolStripMenuItem,
             this.offToolStripMenuItem});
             this.turnAllToolStripMenuItem.Name = "turnAllToolStripMenuItem";
-            this.turnAllToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.turnAllToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.turnAllToolStripMenuItem.Text = "Turn All ->";
             // 
             // onToolStripMenuItem
@@ -124,19 +125,20 @@
             // scheduleToolStripMenuItem
             // 
             this.scheduleToolStripMenuItem.Name = "scheduleToolStripMenuItem";
-            this.scheduleToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.scheduleToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.scheduleToolStripMenuItem.Text = "Schedule";
             this.scheduleToolStripMenuItem.Click += new System.EventHandler(this.scheduleToolStripMenuItem_Click);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.exitToolStripMenuItem.Text = "Exit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
             // timerSchedule
             // 
+            this.timerSchedule.Enabled = true;
             this.timerSchedule.Interval = 60000;
             this.timerSchedule.Tick += new System.EventHandler(this.timerSchedule_Tick);
             // 

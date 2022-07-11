@@ -42,7 +42,7 @@ namespace PiSignageWatcher
             dbConnection = new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
             PopulateData();
 
-            //timerRefresh_Tick(null, null);
+            timerRefresh_Tick(null, null);
         }
 
         private void PopulateData()
