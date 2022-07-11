@@ -252,12 +252,11 @@ namespace PiSignageWatcher
                         new FileDataStore(credPath)).Result)
                     )
                 { IsBackground = true };
-                _ = SendNotificationAsync("Google Authentication needed...");
                 thread.Start();
                 if (!thread.Join(120000))
                 {
                     libmiroppb.Log("Timed-out. User didn't accept Google Authentication in time...");
-                    
+                    _ = SendNotificationAsync("Google Authentication needed...");
                     return null;
                 }
                 else
