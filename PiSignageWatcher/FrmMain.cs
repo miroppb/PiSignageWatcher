@@ -15,6 +15,7 @@ using RestSharp;
 using miroppb;
 using System.Threading.Tasks;
 using System.Net.Http;
+using Dapper;
 
 namespace PiSignageWatcher
 {
@@ -24,12 +25,10 @@ namespace PiSignageWatcher
         private string gDrive = null;
         private string Prowl = null;
         protected string token = "";
-        private Dictionary<string, string> groups = new Dictionary<string, string>();
-        private Dictionary<string, string> playlists = new Dictionary<string, string>();
-        private List<Stuff> Action = new List<Stuff>();
-        Dictionary<string, string> tvs = new Dictionary<string, string>();
-
-        SQLiteConnection dbConnection;
+        private List<ClGroups> groups = new List<ClGroups>();
+        private List<ClPlaylists> playlists = new List<ClPlaylists>();
+        private List<ClSchedule> Action = new List<ClSchedule>();
+        List<ClTV> tvs = new List<ClTV>();
 
         const string announcements_id = Config.announcements_id;
 
@@ -38,8 +37,6 @@ namespace PiSignageWatcher
             InitializeComponent();
 
             libmiroppb.Log("Welcome to PiSignage Watcher! ~uWu~");
-
-            dbConnection = new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
             PopulateData();
 
             timerRefresh_Tick(null, null);
@@ -48,40 +45,58 @@ namespace PiSignageWatcher
         private void PopulateData()
         {
             //settings
-            DataTable dt = GetDataTable("SELECT api, gdrive, prowl FROM settings");
-            APIUrl = dt.Rows[0].ItemArray[0].ToString();
-            gDrive = dt.Rows[0].ItemArray[1].ToString();
-            Prowl = dt.Rows[0].ItemArray[2].ToString();
-
-            //groups
-            dt = GetDataTable("SELECT * FROM groups");
-            (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Clear();
-            foreach (DataRow dr in dt.Rows)
+            using (SQLiteConnection conn = GetSQLConnection())
             {
-                groups.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
-                (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Add(dr.ItemArray[0].ToString(), null, reDeployGroup);
+                ClSettings settings = conn.Query<ClSettings>("SELECT api, gdrive, prowl FROM settings").FirstOrDefault();
+                APIUrl = settings.api;
+                gDrive = settings.gdrive;
+                Prowl = settings.prowl;
             }
 
+            //groups
+            (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Clear();
+            using (SQLiteConnection conn = GetSQLConnection())
+            {
+                List<ClGroups> _groups = conn.Query<ClGroups>("SELECT * FROM groups").ToList();
+                foreach (ClGroups group in _groups)
+                {
+                    groups.Add(group);
+                    (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Add(group.name, null, reDeployGroup);
+                }
+            }
+
+
             //playlists
-            dt = GetDataTable("SELECT * FROM playlists");
-            foreach (DataRow dr in dt.Rows)
-                playlists.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
+            using (SQLiteConnection conn = GetSQLConnection())
+            {
+                List<ClPlaylists> _playlists = conn.Query<ClPlaylists>("SELECT * FROM playlists").ToList();
+                foreach (ClPlaylists playlist in _playlists)
+                    playlists.Add(playlist);
+            }
+
 
             //tvs
-            dt = GetDataTable("SELECT * FROM tvs");
-            foreach (DataRow dr in dt.Rows)
-                tvs.Add(dr.ItemArray[0].ToString(), dr.ItemArray[1].ToString());
+            using (SQLiteConnection conn = GetSQLConnection())
+            {
+                List<ClTV> _tvs = conn.Query<ClTV>("SELECT * FROM tvs").ToList();
+                foreach (ClTV tv in _tvs)
+                    tvs.Add(tv);
+            }
 
             //read schedules into dictionary
-            DataTable s = GetDataTable("SELECT tv, day, time, action FROM schedule");
-            miroppb.libmiroppb.Log("Using following schedule:");
-            foreach (DataRow z in s.Rows)
+            using (SQLiteConnection conn = GetSQLConnection())
             {
-                string action = "Stop";
-                if (z.ItemArray[3].ToString() == "1") { action = "Start"; }
-                else if (z.ItemArray[3].ToString() == "2") { action = "Reboot"; }
-                Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), DoW = (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
-                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())) + ", " + z.ItemArray[2].ToString() + ", " + action + "]");
+                List<ClSchedule> _schedule = conn.Query<ClSchedule, ClTV, ClSchedule>("SELECT s.day, s.time, s.action, tv.* FROM schedule AS s INNER JOIN tvs AS tv ON tv.name = s.tv", (s, t) =>
+                                                                                                                                                                    {
+                                                                                                                                                                        s.tv = t;
+                                                                                                                                                                        return s;
+                                                                                                                                                                    }, splitOn: "name").ToList();
+                miroppb.libmiroppb.Log("Using following schedule:");
+                foreach (ClSchedule schedule in _schedule)
+                {
+                    Action.Add(schedule);
+                    miroppb.libmiroppb.Log($"[{schedule.tv.name}, {schedule.day.ToString()}, {schedule.time.ToShortTimeString()}, {schedule.action.ToString()}]");
+                }
             }
             timerSchedule.Enabled = true;
             timerSchedule.Start();
@@ -90,16 +105,20 @@ namespace PiSignageWatcher
 
         private async Task<bool> refreshToken()
         {
-            DataTable dt = GetDataTable("SELECT user, pass FROM settings");
+            ClSettings _settings = null;
+            using (SQLiteConnection conn = GetSQLConnection())
+            {
+                _settings = conn.Query<ClSettings>("SELECT user, pass FROM settings").ToList().FirstOrDefault();
+            }
 
             Dictionary<string, string> data = new Dictionary<string, string>
             {
-                { "email", dt.Rows[0].ItemArray[0].ToString() },
-                { "password", dt.Rows[0].ItemArray[1].ToString() },
+                { "email", _settings.user },
+                { "password", _settings.pass },
                 { "getToken", "true" }
             };
 
-            string json = SendRequest("/session", Method.POST, data, false);
+            string json = SendRequest("/session", Method.Post, data, false);
 
             Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
             while (t == null)
@@ -107,7 +126,7 @@ namespace PiSignageWatcher
                 libmiroppb.Log("Token not provided, retrying after 1 minute...");
                 //retrying after a few minutes... //2.24.22
                 await Task.Delay(60000);
-                json = SendRequest("/session", Method.POST, data, false);
+                json = SendRequest("/session", Method.Post, data, false);
                 t = JsonConvert.DeserializeObject<Root_Session>(json);
             }
             token = t.token;
@@ -128,18 +147,22 @@ namespace PiSignageWatcher
                 if (gd_files == null) { return; }
                 else { foreach (string file in gd_files.Keys) { libmiroppb.Log(file); } } //print each GD file to log
 
-                DataTable dt = GetDataTable("SELECT * FROM files");
-                libmiroppb.Log("Getting list of database files...");
+                List<ClFiles> _files = null;
+                using (SQLiteConnection conn = GetSQLConnection())
+                {
+                    libmiroppb.Log("Getting list of database files...");
+                    _files = conn.Query<ClFiles>("SELECT * FROM files").ToList();
+                }
 
                 List<string> db_files = new List<string>();
                 libmiroppb.Log("DB files:");
-                foreach (DataRow dr in dt.Rows) { db_files.Add(dr.ItemArray[0].ToString()); libmiroppb.Log(dr.ItemArray[0].ToString()); }
+                foreach (ClFiles file in _files) { db_files.Add(file.filename); libmiroppb.Log(file.filename); }
 
                 //compare the db files with gd files
                 foreach (KeyValuePair<string, string> file in gd_files)
                 {
                     //for each file that doesn't exist already (new file) and starts with a playlist "search" term
-                    if (!db_files.Contains(file.Key) && playlists.Keys.Contains(file.Key.Split(' ')[0]))
+                    if (!db_files.Contains(file.Key) && playlists.Any(x => x.search.Contains(file.Key.Split(' ')[0])))
                     {
                         libmiroppb.Log("Working on: " + file.Key);
                         _ = SendNotificationAsync("Working on " + file.Key);
@@ -159,19 +182,19 @@ namespace PiSignageWatcher
                             _ = SendNotificationAsync("Upload attempt " + file.Key);
                         }
                         libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
-                        _ = SendNotificationAsync("Uploaded "+ file.Key);
+                        _ = SendNotificationAsync("Uploaded " + file.Key);
 
                         File.Delete(file.Key);
                         libmiroppb.Log("Deleted local file: " + file.Key);
 
                         Root_Files_Upload rfu = JsonConvert.DeserializeObject<Root_Files_Upload>(up);
                         //process upload
-                        string post = SendRequest("/postupload", Method.POST, new { files = rfu.data });
+                        string post = SendRequest("/postupload", Method.Post, new { files = rfu.data });
                         libmiroppb.Log("PostUpload: " + file.Key + ", Response: " + post);
                         await Task.Delay(1000);
 
                         //we'll have only 1 file per TV, for now
-                        string json = SendRequest("/files/" + file.Key, Method.GET, null);
+                        string json = SendRequest("/files/" + file.Key, Method.Get, null);
                         libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
                         Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
 
@@ -186,12 +209,15 @@ namespace PiSignageWatcher
                             duration = Convert.ToInt32(rf.data.dbdata.duration)
                         };
                         object[] resArray = new object[] { af };
-                        string pl = playlists[file.Key.Split(' ')[0]]; //playlist associated with current file
-                        string playlist = SendRequest("/playlists/" + pl, Method.POST, new { assets = resArray });
-                        libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlist);
+                        string pl = playlists.First(x => x.search == file.Key.Split(' ')[0]).name; //playlist associated with current file
+                        string playlistResponse = SendRequest("/playlists/" + pl, Method.Post, new { assets = resArray });
+                        libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlistResponse);
 
                         //add file to database
-                        _ = ExecuteNonQuery("INSERT INTO files VALUES(\"" + file.Key + "\", \"" + pl + "\");");
+                        using (SQLiteConnection conn = GetSQLConnection())
+                        {
+                            conn.Execute($"INSERT INTO files VALUES('{file.Key}', '{pl}');");
+                        }
                         libmiroppb.Log("Added " + file.Key + " to the database");
 
                         changes = true;
@@ -203,24 +229,27 @@ namespace PiSignageWatcher
                     if (!gd_files.ContainsKey(a))
                     {
                         //remove db file from pisignage
-                        string files = SendRequest("/files/" + a, Method.DELETE, null);
+                        string files = SendRequest("/files/" + a, Method.Delete, null);
                         libmiroppb.Log("Deleted file: " + a + ", Response: " + files);
                         changes = true;
 
                         //and database
-                        _ = ExecuteNonQuery("DELETE FROM files WHERE filename = \"" + a + "\"");
+                        using (SQLiteConnection conn = GetSQLConnection())
+                        {
+                            conn.Execute($"DELETE FROM files WHERE filename = '{a}'");
+                        }
                         libmiroppb.Log("Deleted file " + a + " from database");
                     }
                 }
                 //Deploy each group if something was changed
                 if (changes)
                 {
-                    foreach (KeyValuePair<string, string> kvp in groups)
+                    foreach (ClGroups group in groups)
                     {
                         libmiroppb.Log("Waiting 30 seconds...");
                         await Task.Delay(30000); //1.30.22 Waiting 30 seconds for 
-                        string group = SendRequest("/groups/" + kvp.Value, Method.POST, new { deploy = true, orientation = "landscape", resolution = "auto", exportAssets = false });
-                        libmiroppb.Log("Deployed " + kvp.Key + ", Response: " + group);
+                        string groupResponse = SendRequest("/groups/" + group.hex, Method.Post, new { deploy = true, orientation = "landscape", resolution = "auto", exportAssets = false });
+                        libmiroppb.Log("Deployed " + group.name + ", Response: " + groupResponse);
                     }
                 }
             }
@@ -381,7 +410,7 @@ namespace PiSignageWatcher
             RestClient restClient = new RestClient(APIUrl);
             RestRequest restRequest = new RestRequest(url + "?token=" + token);
             restRequest.RequestFormat = DataFormat.Json;
-            restRequest.Method = Method.POST;
+            restRequest.Method = Method.Post;
             restRequest.AddHeader("Content-Type", "multipart/form-data");
             restRequest.AddFile("content", filename);
             var response = restClient.Execute(restRequest);
@@ -403,134 +432,6 @@ namespace PiSignageWatcher
             var response = restClient.Execute(restRequest);
             return response.Content;
         }
-
-        #region SQLite code
-        public DataTable GetDataTable(string sql)
-        {
-            DataTable dt = new DataTable();
-            try
-            {
-                SQLiteConnection conn = new SQLiteConnection(dbConnection);
-                conn.Open();
-                SQLiteCommand comm = new SQLiteCommand(sql, conn);
-                SQLiteDataReader reader = comm.ExecuteReader();
-                dt.Load(reader);
-                reader.Close();
-                conn.Close();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message.ToString());
-            }
-            return dt;
-        }
-
-        public int ExecuteNonQuery(string sql)
-        {
-            SQLiteConnection conn = new SQLiteConnection(dbConnection);
-            conn.Open();
-            SQLiteCommand comm = new SQLiteCommand(conn);
-            comm.CommandText = sql;
-            int rowsUpdated = comm.ExecuteNonQuery();
-            conn.Close();
-            return rowsUpdated;
-        }
-
-        public int ExecuteNonQueryWithBlob(string sql, string blobFieldName, byte[] blob)
-        {
-            SQLiteConnection con = new SQLiteConnection(dbConnection);
-            SQLiteCommand cmd = con.CreateCommand();
-            cmd.CommandText = String.Format(sql);
-            SQLiteParameter param = new SQLiteParameter("@" + blobFieldName, System.Data.DbType.Binary);
-            param.Value = blob;
-            cmd.Parameters.Add(param);
-            con.Open();
-
-            try
-            {
-                cmd.ExecuteNonQuery();
-            }
-            catch (Exception exc1)
-            {
-                MessageBox.Show(exc1.Message);
-            }
-            con.Close();
-            return 0;
-        }
-
-        public bool Update(string tableName, Dictionary<string, string> data, string where)
-        {
-            string vals = "";
-            bool returnCode = true;
-            if (data.Count >= 1)
-            {
-                foreach (KeyValuePair<string, string> val in data)
-                {
-                    vals += String.Format(" {0} = '{1}',", val.Key.ToString(), val.Value.ToString());
-                }
-                vals = vals.Substring(0, vals.Length - 1);
-            }
-            try
-            {
-                this.ExecuteNonQuery(String.Format("UPDATE {0} SET {1} WHERE {2}", tableName, vals, where));
-            }
-            catch
-            {
-                returnCode = false;
-            }
-            return returnCode;
-        }
-
-        public bool Delete(string tableName, string where)
-        {
-            bool returnCode = true;
-            try
-            {
-                this.ExecuteNonQuery(String.Format("DELETE FROM {0} WHERE {1}", tableName, where));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-                returnCode = false;
-            }
-            return returnCode;
-        }
-
-        public bool Insert(string tableName, Dictionary<string, string> data)
-        {
-            string columns = "";
-            string values = "";
-            bool returnCode = true;
-            foreach (KeyValuePair<string, string> val in data)
-            {
-                columns += String.Format(" {0},", val.Key.ToString());
-                values += String.Format(" '{0}',", val.Value);
-            }
-            columns = columns.Substring(0, columns.Length - 1);
-            values = values.Substring(0, values.Length - 1);
-            try
-            {
-                this.ExecuteNonQuery(String.Format("INSERT INTO {0}({1}) VALUES({2});", tableName, columns, values));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-                returnCode = false;
-            }
-            return returnCode;
-        }
-        public void Prepare(string sql, List<SQLiteParameter> data)
-        {
-            SQLiteConnection conn = new SQLiteConnection(dbConnection);
-            conn.Open();
-            SQLiteCommand comm = new SQLiteCommand(conn);
-            comm.CommandText = sql;
-            for (int c = 0; c < data.Count(); c++)
-                comm.Parameters.Add(data[c]);
-            comm.ExecuteNonQuery();
-            conn.Close();
-        }
-        #endregion
 
         #region JSON
         public class Resolution
@@ -822,53 +723,53 @@ namespace PiSignageWatcher
         private void scheduleToolStripMenuItem_Click(object sender, EventArgs e)
         {
             FrmSchedule frm = new FrmSchedule();
-            frm.dbConnection.ConnectionString = dbConnection.ConnectionString;
+            frm.dbConnection = GetSQLConnection();
             frm.ValidTVs.Clear();
-            frm.ValidTVs.AddRange(tvs.Keys);
+            frm.ValidTVs.AddRange(tvs.Select(x => x.name));
             frm.ValidActions.Clear();
-            frm.ValidActions.AddRange(Enum.GetNames(typeof(Stuff.ScheduleActions)));
+            frm.ValidActions.AddRange(Enum.GetNames(typeof(ScheduleActions)));
             frm.ShowDialog(this);
 
             //re-read the schedules into dictionary
             Action.Clear();
 
-            DataTable s = GetDataTable("SELECT tv, day, time, action FROM schedule");
-            miroppb.libmiroppb.Log("Using new schedule:");
-            foreach (DataRow z in s.Rows)
+            using (SQLiteConnection conn = GetSQLConnection())
             {
-                string action = "Stop";
-                if (z.ItemArray[3].ToString() == "1") { action = "Start"; }
-                else if (z.ItemArray[3].ToString() == "2") { action = "Reboot"; }
-                Action.Add(new Stuff { Tv = z.ItemArray[0].ToString(), DoW = (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())), Dt = Convert.ToDateTime(z.ItemArray[2].ToString()), Sa = (Stuff.ScheduleActions)Convert.ToInt32(z.ItemArray[3].ToString()) });
-                miroppb.libmiroppb.Log("[" + z.ItemArray[0].ToString() + ", " + (DayOfWeek)(Convert.ToInt32(z.ItemArray[1].ToString())) + ", " + z.ItemArray[2].ToString() + ", " + action + "]");
+                List<ClSchedule> _schedule = conn.Query<ClSchedule>("SELECT tv, day, time, action FROM schedule").ToList();
+                miroppb.libmiroppb.Log("Using following schedule:");
+                foreach (ClSchedule schedule in _schedule)
+                {
+                    Action.Add(schedule);
+                    miroppb.libmiroppb.Log($"[{schedule.tv.name}, {schedule.day.ToString()}, {schedule.time.ToShortTimeString()}, {schedule.action.ToString()}]");
+                }
             }
         }
 
         private async void timerSchedule_Tick(object sender, EventArgs e)
         {
             //should be easy peasy right?
-            foreach (Stuff a in Action)
+            foreach (ClSchedule a in Action)
             {
-                if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOffTV)
+                if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOffTV)
                 {
                     miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
                     await Task.Delay(10000);
-                    miroppb.libmiroppb.Log("Turning Off Tv: " + a.Tv);
-                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = true }); //true is off
+                    miroppb.libmiroppb.Log("Turning Off Tv: " + a.tv.name);
+                    SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = true }); //true is off
                 }
-                else if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.TurnOnTV)
+                else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOnTV)
                 {
                     miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
                     await Task.Delay(10000);
-                    miroppb.libmiroppb.Log("Turning On Tv: " + a.Tv);
-                    SendRequest("/pitv/" + tvs[a.Tv], Method.POST, new { status = false }); //false is on
+                    miroppb.libmiroppb.Log("Turning On Tv: " + a.tv.name);
+                    SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = false }); //false is on
                 }
-                else if (DateTime.Now.DayOfWeek == a.DoW && DateTime.Now.ToShortTimeString() == a.Dt.ToShortTimeString() && a.Sa == Stuff.ScheduleActions.Reboot)
+                else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.Reboot)
                 {
                     miroppb.libmiroppb.Log("Waiting 10 seconds...");
                     await Task.Delay(10000);
-                    miroppb.libmiroppb.Log("Rebooting TV: " + a.Tv);
-                    SendRequest("/pishell/" + tvs[a.Tv], Method.POST, new { cmd = "shutdown -r now" });
+                    miroppb.libmiroppb.Log("Rebooting TV: " + a.tv.name);
+                    SendRequest("/pishell/" + a.tv.hex, Method.Post, new { cmd = "shutdown -r now" });
                 }
             }
         }
@@ -876,7 +777,7 @@ namespace PiSignageWatcher
         private void showPlayerIDsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             FrmPlayers frm = new FrmPlayers();
-            string json = SendRequest("/players", Method.GET, null);
+            string json = SendRequest("/players", Method.Get, null);
             Root_Player rp = JsonConvert.DeserializeObject<Root_Player>(json);
             foreach (Object obj in rp.data.objects)
             {
@@ -889,24 +790,24 @@ namespace PiSignageWatcher
         private async void onToolStripMenuItem_Click(object sender, EventArgs e)
         {
             libmiroppb.Log("Turning all On");
-            foreach (KeyValuePair<string, string> kv in tvs)
+            foreach (ClTV tv in tvs)
             {
                 miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests...
                 await Task.Delay(10000);
-                miroppb.libmiroppb.Log("Turning On Tv: " + kv.Key);
-                SendRequest("/pitv/" + kv.Value, Method.POST, new { status = false }); //false is on
+                miroppb.libmiroppb.Log("Turning On Tv: " + tv.name);
+                SendRequest("/pitv/" + tv.hex, Method.Post, new { status = false }); //false is on
             }
         }
 
         private async void offToolStripMenuItem_Click(object sender, EventArgs e)
         {
             libmiroppb.Log("Turning all Off");
-            foreach (KeyValuePair<string, string> kv in tvs)
+            foreach (ClTV tv in tvs)
             {
                 miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
                 await Task.Delay(10000);
-                miroppb.libmiroppb.Log("Turning Off Tv: " + kv.Key);
-                SendRequest("/pitv/" + kv.Value, Method.POST, new { status = true }); //false is on
+                miroppb.libmiroppb.Log("Turning Off Tv: " + tv.name);
+                SendRequest("/pitv/" + tv.hex, Method.Post, new { status = true }); //false is on
             }
         }
 
@@ -919,21 +820,24 @@ namespace PiSignageWatcher
         private void reDeployGroup(string groupID)
         {
             //get file with KEY
-            DataTable dt = GetDataTable($"SELECT filename FROM files WHERE playlist = '{groupID}'");
-            string group = SendRequest("/groups/" + groups[groupID], Method.POST,
-                new
-                {
-                    deploy = true,
-                    orientation = "landscape",
-                    resolution = "auto",
-                    exportAssets = false,
-                    assets = new string[] {
-                            dt.Rows[0].ItemArray[0].ToString(),
-                            "__" + groups[groupID] + ".json",
+            using (SQLiteConnection conn = GetSQLConnection())
+            {
+                ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{groupID}'").FirstOrDefault();
+                string group = SendRequest("/groups/" + groups.Where(x => x.name == groupID), Method.Post,
+                    new
+                    {
+                        deploy = true,
+                        orientation = "landscape",
+                        resolution = "auto",
+                        exportAssets = false,
+                        assets = new string[] {
+                            files.filename,
+                            "__" + groups.Where(x => x.name == groupID) + ".json",
                             "custom_layout.html"
-                    },
-                });
-            libmiroppb.Log($"Deployed {groupID}, Response: {group}");
+                        },
+                    });
+                libmiroppb.Log($"Deployed {groupID}, Response: {group}");
+            }
         }
 
         private async Task SendNotificationAsync(string text)
@@ -950,6 +854,11 @@ namespace PiSignageWatcher
             var response = await client.PostAsync("https://api.prowlapp.com/publicapi/add", content);
 
             var responseString = await response.Content.ReadAsStringAsync();
+        }
+
+        SQLiteConnection GetSQLConnection()
+        {
+            return new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
         }
     }
 }
