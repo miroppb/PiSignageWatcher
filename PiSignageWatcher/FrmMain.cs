@@ -829,11 +829,11 @@ namespace PiSignageWatcher
                     assets = new string[]
                     {
                         files.filename,
-                        "__" + groups.Where(x => x.name == groupID).First() + ".json",
+                        "__" + groups.Where(x => x.name == groupID).First().name + ".json",
                         "custom_layout.html"
                     }
                 };
-                string group = SendRequest("/groups/" + groups.Where(x => x.name == groupID), Method.Post, deployOptions);
+                string group = SendRequest("/groups/" + groups.Where(x => x.name == groupID).First().hex, Method.Post, deployOptions);
                 libmiroppb.Log($"Deployed {groupID}, with options:{deployOptions}, Response: {group}");
             }
         }
