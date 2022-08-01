@@ -43,3 +43,12 @@ class ClTV
     public string name { get; set; }
     public string hex { get; set; }
 }
+
+class ClDeployOptions
+{
+    public bool deploy { get; set; } = true;
+    public string orientation { get; set; } = "landscape";
+    public string resolution { get; set; } = "auto";
+    public bool exportAssets { get; set; } = false;
+    public string[] assets { get; set; }
+}

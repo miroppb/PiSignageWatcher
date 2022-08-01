@@ -42,6 +42,8 @@
             this.offToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.scheduleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.rebootToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.item1ToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.timerSchedule = new System.Windows.Forms.Timer(this.components);
             this.contextMenuStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -61,27 +63,29 @@
             // 
             // contextMenuStrip1
             // 
+            this.contextMenuStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.checkNowToolStripMenuItem,
             this.showPlayerIDsToolStripMenuItem,
             this.reDeplotToolStripMenuItem,
             this.turnAllToolStripMenuItem,
+            this.rebootToolStripMenuItem,
             this.scheduleToolStripMenuItem,
             this.exitToolStripMenuItem});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(158, 136);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(211, 200);
             // 
             // checkNowToolStripMenuItem
             // 
             this.checkNowToolStripMenuItem.Name = "checkNowToolStripMenuItem";
-            this.checkNowToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.checkNowToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.checkNowToolStripMenuItem.Text = "Check Now";
             this.checkNowToolStripMenuItem.Click += new System.EventHandler(this.checkNowToolStripMenuItem_Click);
             // 
             // showPlayerIDsToolStripMenuItem
             // 
             this.showPlayerIDsToolStripMenuItem.Name = "showPlayerIDsToolStripMenuItem";
-            this.showPlayerIDsToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.showPlayerIDsToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.showPlayerIDsToolStripMenuItem.Text = "Show Player IDs";
             this.showPlayerIDsToolStripMenuItem.Click += new System.EventHandler(this.showPlayerIDsToolStripMenuItem_Click);
             // 
@@ -90,13 +94,13 @@
             this.reDeplotToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.item1ToolStripMenuItem});
             this.reDeplotToolStripMenuItem.Name = "reDeplotToolStripMenuItem";
-            this.reDeplotToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.reDeplotToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.reDeplotToolStripMenuItem.Text = "Re-Deploy ->";
             // 
             // item1ToolStripMenuItem
             // 
             this.item1ToolStripMenuItem.Name = "item1ToolStripMenuItem";
-            this.item1ToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.item1ToolStripMenuItem.Size = new System.Drawing.Size(130, 26);
             this.item1ToolStripMenuItem.Text = "Item1";
             // 
             // turnAllToolStripMenuItem
@@ -105,36 +109,50 @@
             this.onToolStripMenuItem,
             this.offToolStripMenuItem});
             this.turnAllToolStripMenuItem.Name = "turnAllToolStripMenuItem";
-            this.turnAllToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.turnAllToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.turnAllToolStripMenuItem.Text = "Turn All ->";
             // 
             // onToolStripMenuItem
             // 
             this.onToolStripMenuItem.Name = "onToolStripMenuItem";
-            this.onToolStripMenuItem.Size = new System.Drawing.Size(91, 22);
+            this.onToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.onToolStripMenuItem.Text = "On";
             this.onToolStripMenuItem.Click += new System.EventHandler(this.onToolStripMenuItem_Click);
             // 
             // offToolStripMenuItem
             // 
             this.offToolStripMenuItem.Name = "offToolStripMenuItem";
-            this.offToolStripMenuItem.Size = new System.Drawing.Size(91, 22);
+            this.offToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.offToolStripMenuItem.Text = "Off";
             this.offToolStripMenuItem.Click += new System.EventHandler(this.offToolStripMenuItem_Click);
             // 
             // scheduleToolStripMenuItem
             // 
             this.scheduleToolStripMenuItem.Name = "scheduleToolStripMenuItem";
-            this.scheduleToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.scheduleToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.scheduleToolStripMenuItem.Text = "Schedule";
             this.scheduleToolStripMenuItem.Click += new System.EventHandler(this.scheduleToolStripMenuItem_Click);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
             this.exitToolStripMenuItem.Text = "Exit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            // 
+            // rebootToolStripMenuItem
+            // 
+            this.rebootToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.item1ToolStripMenuItem1});
+            this.rebootToolStripMenuItem.Name = "rebootToolStripMenuItem";
+            this.rebootToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
+            this.rebootToolStripMenuItem.Text = "Reboot ->";
+            // 
+            // item1ToolStripMenuItem1
+            // 
+            this.item1ToolStripMenuItem1.Name = "item1ToolStripMenuItem1";
+            this.item1ToolStripMenuItem1.Size = new System.Drawing.Size(224, 26);
+            this.item1ToolStripMenuItem1.Text = "Item1";
             // 
             // timerSchedule
             // 
@@ -144,10 +162,10 @@
             // 
             // FrmMain
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(754, 432);
-            this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            this.ClientSize = new System.Drawing.Size(862, 576);
+            this.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
             this.Name = "FrmMain";
             this.Text = "Form1";
             this.contextMenuStrip1.ResumeLayout(false);
@@ -170,6 +188,8 @@
         private System.Windows.Forms.ToolStripMenuItem offToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem reDeplotToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem item1ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem rebootToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem item1ToolStripMenuItem1;
     }
 }
 

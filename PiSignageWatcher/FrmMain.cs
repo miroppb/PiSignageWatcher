@@ -55,6 +55,7 @@ namespace PiSignageWatcher
 
             //groups
             (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Clear();
+            (contextMenuStrip1.Items[4] as ToolStripMenuItem).DropDownItems.Clear();
             using (SQLiteConnection conn = GetSQLConnection())
             {
                 List<ClGroups> _groups = conn.Query<ClGroups>("SELECT * FROM groups").ToList();
@@ -62,9 +63,9 @@ namespace PiSignageWatcher
                 {
                     groups.Add(group);
                     (contextMenuStrip1.Items[2] as ToolStripMenuItem).DropDownItems.Add(group.name, null, reDeployGroup);
+                    (contextMenuStrip1.Items[4] as ToolStripMenuItem).DropDownItems.Add(group.name, null, rebootGroup);
                 }
             }
-
 
             //playlists
             using (SQLiteConnection conn = GetSQLConnection())
@@ -73,7 +74,6 @@ namespace PiSignageWatcher
                 foreach (ClPlaylists playlist in _playlists)
                     playlists.Add(playlist);
             }
-
 
             //tvs
             using (SQLiteConnection conn = GetSQLConnection())
@@ -86,11 +86,12 @@ namespace PiSignageWatcher
             //read schedules into dictionary
             using (SQLiteConnection conn = GetSQLConnection())
             {
-                List<ClSchedule> _schedule = conn.Query<ClSchedule, ClTV, ClSchedule>("SELECT s.day, s.time, s.action, tv.* FROM schedule AS s INNER JOIN tvs AS tv ON tv.name = s.tv", (s, t) =>
-                                                                                                                                                                    {
-                                                                                                                                                                        s.tv = t;
-                                                                                                                                                                        return s;
-                                                                                                                                                                    }, splitOn: "name").ToList();
+                List<ClSchedule> _schedule = conn.Query<ClSchedule, ClTV, ClSchedule>
+                    ("SELECT s.day, s.time, s.action, tv.* FROM schedule AS s INNER JOIN tvs AS tv ON tv.name = s.tv", (s, t) =>
+                    {
+                        s.tv = t;
+                        return s;
+                    }, splitOn: "name").ToList();
                 miroppb.libmiroppb.Log("Using following schedule:");
                 foreach (ClSchedule schedule in _schedule)
                 {
@@ -823,21 +824,32 @@ namespace PiSignageWatcher
             using (SQLiteConnection conn = GetSQLConnection())
             {
                 ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{groupID}'").FirstOrDefault();
-                string group = SendRequest("/groups/" + groups.Where(x => x.name == groupID), Method.Post,
-                    new
+                ClDeployOptions deployOptions = new ClDeployOptions()
+                {
+                    assets = new string[]
                     {
-                        deploy = true,
-                        orientation = "landscape",
-                        resolution = "auto",
-                        exportAssets = false,
-                        assets = new string[] {
-                            files.filename,
-                            "__" + groups.Where(x => x.name == groupID) + ".json",
-                            "custom_layout.html"
-                        },
-                    });
-                libmiroppb.Log($"Deployed {groupID}, Response: {group}");
+                        files.filename,
+                        "__" + groups.Where(x => x.name == groupID).First() + ".json",
+                        "custom_layout.html"
+                    }
+                };
+                string group = SendRequest("/groups/" + groups.Where(x => x.name == groupID), Method.Post, deployOptions);
+                libmiroppb.Log($"Deployed {groupID}, with options:{deployOptions}, Response: {group}");
             }
+        }
+
+        private void rebootGroup(object sender, EventArgs e)
+        {
+            ToolStripItem i = (sender as ToolStripItem);
+            rebootGroup(i.Text);
+        }
+
+        private async void rebootGroup(string TVID)
+        {
+            miroppb.libmiroppb.Log("Waiting 10 seconds...");
+            await Task.Delay(10000);
+            miroppb.libmiroppb.Log("Rebooting TV: " + tvs.Where(x => x.name == TVID).First().hex);
+            SendRequest("/pishell/" + tvs.Where(x => x.name == TVID).First().hex, Method.Post, new { cmd = "shutdown -r now" });
         }
 
         private async Task SendNotificationAsync(string text)
