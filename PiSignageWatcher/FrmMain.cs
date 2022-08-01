@@ -92,16 +92,16 @@ namespace PiSignageWatcher
                         s.tv = t;
                         return s;
                     }, splitOn: "name").ToList();
-                miroppb.libmiroppb.Log("Using following schedule:");
+                libmiroppb.Log("Using following schedule:");
                 foreach (ClSchedule schedule in _schedule)
                 {
                     Action.Add(schedule);
-                    miroppb.libmiroppb.Log($"[{schedule.tv.name}, {schedule.day.ToString()}, {schedule.time.ToShortTimeString()}, {schedule.action.ToString()}]");
+                    libmiroppb.Log($"[{schedule.tv.name}, {schedule.day.ToString()}, {schedule.time.ToShortTimeString()}, {schedule.action.ToString()}]");
                 }
             }
             timerSchedule.Enabled = true;
             timerSchedule.Start();
-            miroppb.libmiroppb.Log("Schedule Timer started");
+            libmiroppb.Log("Schedule Timer started");
         }
 
         private async Task<bool> refreshToken()
@@ -200,7 +200,7 @@ namespace PiSignageWatcher
                         Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
 
                         //add current file to playlist
-                        Asset_Files af = new Asset_Files
+                        Asset_Files af = new()
                         {
                             filename = file.Key,
                             dragSelected = false,
@@ -400,7 +400,7 @@ namespace PiSignageWatcher
 
         private static void SaveStream(System.IO.MemoryStream stream, string saveTo)
         {
-            using (System.IO.FileStream file = new System.IO.FileStream(saveTo, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+            using (FileStream file = new(saveTo, FileMode.Create, FileAccess.Write))
             {
                 stream.WriteTo(file);
             }
@@ -408,8 +408,8 @@ namespace PiSignageWatcher
 
         private string Upload(string url, string filename)
         {
-            RestClient restClient = new RestClient(APIUrl);
-            RestRequest restRequest = new RestRequest(url + "?token=" + token);
+            RestClient restClient = new(APIUrl);
+            RestRequest restRequest = new(url + "?token=" + token);
             restRequest.RequestFormat = DataFormat.Json;
             restRequest.Method = Method.Post;
             restRequest.AddHeader("Content-Type", "multipart/form-data");
@@ -420,7 +420,7 @@ namespace PiSignageWatcher
 
         private string SendRequest(string url, RestSharp.Method method, object json, bool sendtoken = true)
         {
-            RestClient restClient = new RestClient(APIUrl);
+            RestClient restClient = new(APIUrl);
             RestRequest restRequest = null;
             if (sendtoken)
                 restRequest = new RestRequest(url + "?token=" + token);
@@ -723,7 +723,7 @@ namespace PiSignageWatcher
 
         private void scheduleToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            FrmSchedule frm = new FrmSchedule();
+            FrmSchedule frm = new();
             frm.dbConnection = GetSQLConnection();
             frm.ValidTVs.Clear();
             frm.ValidTVs.AddRange(tvs.Select(x => x.name));
@@ -737,11 +737,11 @@ namespace PiSignageWatcher
             using (SQLiteConnection conn = GetSQLConnection())
             {
                 List<ClSchedule> _schedule = conn.Query<ClSchedule>("SELECT tv, day, time, action FROM schedule").ToList();
-                miroppb.libmiroppb.Log("Using following schedule:");
+                libmiroppb.Log("Using following schedule:");
                 foreach (ClSchedule schedule in _schedule)
                 {
                     Action.Add(schedule);
-                    miroppb.libmiroppb.Log($"[{schedule.tv.name}, {schedule.day.ToString()}, {schedule.time.ToShortTimeString()}, {schedule.action.ToString()}]");
+                    libmiroppb.Log($"[{schedule.tv.name}, {schedule.day.ToString()}, {schedule.time.ToShortTimeString()}, {schedule.action.ToString()}]");
                 }
             }
         }
@@ -753,23 +753,23 @@ namespace PiSignageWatcher
             {
                 if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOffTV)
                 {
-                    miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
+                    libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
                     await Task.Delay(10000);
-                    miroppb.libmiroppb.Log("Turning Off Tv: " + a.tv.name);
+                    libmiroppb.Log("Turning Off Tv: " + a.tv.name);
                     SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = true }); //true is off
                 }
                 else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOnTV)
                 {
-                    miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
+                    libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
                     await Task.Delay(10000);
-                    miroppb.libmiroppb.Log("Turning On Tv: " + a.tv.name);
+                    libmiroppb.Log("Turning On Tv: " + a.tv.name);
                     SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = false }); //false is on
                 }
                 else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.Reboot)
                 {
-                    miroppb.libmiroppb.Log("Waiting 10 seconds...");
+                    libmiroppb.Log("Waiting 10 seconds...");
                     await Task.Delay(10000);
-                    miroppb.libmiroppb.Log("Rebooting TV: " + a.tv.name);
+                    libmiroppb.Log("Rebooting TV: " + a.tv.name);
                     SendRequest("/pishell/" + a.tv.hex, Method.Post, new { cmd = "shutdown -r now" });
                 }
             }
@@ -777,7 +777,7 @@ namespace PiSignageWatcher
 
         private void showPlayerIDsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            FrmPlayers frm = new FrmPlayers();
+            FrmPlayers frm = new();
             string json = SendRequest("/players", Method.Get, null);
             Root_Player rp = JsonConvert.DeserializeObject<Root_Player>(json);
             foreach (Object obj in rp.data.objects)
@@ -793,9 +793,9 @@ namespace PiSignageWatcher
             libmiroppb.Log("Turning all On");
             foreach (ClTV tv in tvs)
             {
-                miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests...
+                libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests...
                 await Task.Delay(10000);
-                miroppb.libmiroppb.Log("Turning On Tv: " + tv.name);
+                libmiroppb.Log("Turning On Tv: " + tv.name);
                 SendRequest("/pitv/" + tv.hex, Method.Post, new { status = false }); //false is on
             }
         }
@@ -805,9 +805,9 @@ namespace PiSignageWatcher
             libmiroppb.Log("Turning all Off");
             foreach (ClTV tv in tvs)
             {
-                miroppb.libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
+                libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
                 await Task.Delay(10000);
-                miroppb.libmiroppb.Log("Turning Off Tv: " + tv.name);
+                libmiroppb.Log("Turning Off Tv: " + tv.name);
                 SendRequest("/pitv/" + tv.hex, Method.Post, new { status = true }); //false is on
             }
         }
@@ -844,11 +844,9 @@ namespace PiSignageWatcher
             rebootGroup(i.Text);
         }
 
-        private async void rebootGroup(string TVID)
+        private void rebootGroup(string TVID)
         {
-            miroppb.libmiroppb.Log("Waiting 10 seconds...");
-            await Task.Delay(10000);
-            miroppb.libmiroppb.Log("Rebooting TV: " + tvs.Where(x => x.name == TVID).First().hex);
+            libmiroppb.Log("Rebooting TV: " + tvs.Where(x => x.name == TVID).First().name);
             SendRequest("/pishell/" + tvs.Where(x => x.name == TVID).First().hex, Method.Post, new { cmd = "shutdown -r now" });
         }
 
@@ -862,7 +860,7 @@ namespace PiSignageWatcher
             };
 
             var content = new FormUrlEncodedContent(values);
-            HttpClient client = new HttpClient();
+            HttpClient client = new();
             var response = await client.PostAsync("https://api.prowlapp.com/publicapi/add", content);
 
             var responseString = await response.Content.ReadAsStringAsync();
