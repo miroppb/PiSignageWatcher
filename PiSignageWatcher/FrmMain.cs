@@ -248,9 +248,22 @@ namespace PiSignageWatcher
                     foreach (ClGroups group in groups)
                     {
                         libmiroppb.Log("Waiting 30 seconds...");
-                        await Task.Delay(30000); //1.30.22 Waiting 30 seconds for 
-                        string groupResponse = SendRequest("/groups/" + group.hex, Method.Post, new { deploy = true, orientation = "landscape", resolution = "auto", exportAssets = false });
-                        libmiroppb.Log("Deployed " + group.name + ", Response: " + groupResponse);
+                        await Task.Delay(30000); //1.30.22 Waiting 30 seconds
+                        using (SQLiteConnection conn = GetSQLConnection())
+                        {
+                            ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{group.name}'").FirstOrDefault();
+                            ClDeployOptions deployOptions = new ClDeployOptions()
+                            {
+                                assets = new string[]
+                                {
+                                files.filename,
+                                "__" + groups.Where(x => x.name == group.name).First().name + ".json",
+                                "custom_layout.html"
+                                }
+                            };
+                            string groupResponse = SendRequest("/groups/" + group.hex, Method.Post, deployOptions);
+                            libmiroppb.Log("Deployed " + group.name + ", Response: " + groupResponse);
+                        }
                     }
                 }
             }
