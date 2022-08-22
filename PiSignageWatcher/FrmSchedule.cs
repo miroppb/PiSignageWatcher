@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dapper;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
@@ -167,15 +168,19 @@ namespace PiSignageWatcher
             ((DataGridViewComboBoxColumn)DgvSchedule.Columns[0]).Items.AddRange(ValidTVs.ToArray());
             ((DataGridViewComboBoxColumn)DgvSchedule.Columns[1]).Items.AddRange(DoW.ToArray());
             ((DataGridViewComboBoxColumn)DgvSchedule.Columns[3]).Items.AddRange(ValidActions.ToArray());
-            DataTable b = GetDataTable("SELECT id, tv, day, time, action FROM schedule ORDER BY id");
-            for (int c = 0; c < b.Rows.Count; c++)
+
+            List<ClSchedule> clSchedules = null;
+            using (SQLiteConnection conn = GetSQLConnection())
+                clSchedules = conn.Query<ClSchedule>("SELECT id, tv, day, time, action FROM schedule ORDER BY id").ToList();
+
+            for (int c = 0; c < clSchedules.Count; c++)
             {
-                ActionIDs.Add(Convert.ToInt32(b.Rows[c].ItemArray[0].ToString()));
+                ActionIDs.Add(clSchedules[c].id);
                 DgvSchedule.Rows.Add();
-                try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[0]).Value = b.Rows[c].ItemArray[1].ToString(); } catch { }
-                try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[1]).Value = DoW[Convert.ToInt16(b.Rows[c].ItemArray[2].ToString())]; } catch { }
-                DgvSchedule.Rows[c].Cells[2].Value = b.Rows[c].ItemArray[3].ToString();
-                try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[3]).Value = ValidActions[Convert.ToInt16(b.Rows[c].ItemArray[4].ToString())]; } catch { }
+                try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[0]).Value = clSchedules[c].tv; } catch { }
+                try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[1]).Value = DoW[Convert.ToInt16(clSchedules[c].day)]; } catch { }
+                DgvSchedule.Rows[c].Cells[2].Value = clSchedules[c].time.ToString();
+                try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[3]).Value = ValidActions[Convert.ToInt16(clSchedules[c].action)]; } catch { }
             }
 
             starting = false;
@@ -244,6 +249,11 @@ namespace PiSignageWatcher
                 }
             }
             //easy peasy
+        }
+
+        SQLiteConnection GetSQLConnection()
+        {
+            return new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
         }
     }
 }
