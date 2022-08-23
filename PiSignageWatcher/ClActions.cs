@@ -51,4 +51,9 @@ class ClDeployOptions
     public string resolution { get; set; } = "auto";
     public bool exportAssets { get; set; } = false;
     public string[] assets { get; set; }
+
+    public override string ToString()
+    {
+        return $"deploy: {deploy}, orientation: {orientation}, resolution: {resolution}, exportAssets: {exportAssets}, assets: {String.Join(", ", assets)}";
+    }
 }

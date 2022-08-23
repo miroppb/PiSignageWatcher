@@ -38,8 +38,9 @@ namespace PiSignageWatcher
 
             libmiroppb.Log("Welcome to PiSignage Watcher! ~uWu~");
             PopulateData();
-
+#if !DEBUG
             timerRefresh_Tick(null, null);
+#endif
         }
 
         private void PopulateData()
@@ -135,7 +136,7 @@ namespace PiSignageWatcher
             return true;
         }
 
-        private async void timerRefresh_Tick(object sender, EventArgs e)
+        public async void timerRefresh_Tick(object sender, EventArgs e)
         {
             //lets get authenticated
             if (await refreshToken())
@@ -447,282 +448,6 @@ namespace PiSignageWatcher
             return response.Content;
         }
 
-        #region JSON
-        public class Resolution
-        {
-            public string width { get; set; }
-            public string height { get; set; }
-        }
-
-        public class CreatedBy
-        {
-            public string _id { get; set; }
-            public string name { get; set; }
-        }
-
-        public class Dbdata
-        {
-            public Resolution resolution { get; set; }
-            public CreatedBy createdBy { get; set; }
-            public List<object> labels { get; set; }
-            public List<object> playlists { get; set; }
-            public List<object> groupIds { get; set; }
-            public string installation { get; set; }
-            public string _id { get; set; }
-            public DateTime createdAt { get; set; }
-            public string name { get; set; }
-            public string type { get; set; }
-            public string duration { get; set; }
-            public string size { get; set; }
-            public string thumbnail { get; set; }
-            public int __v { get; set; }
-        }
-
-        public class Data_Files
-        {
-            public string name { get; set; }
-            public string size { get; set; }
-            public DateTime ctime { get; set; }
-            public string path { get; set; }
-            public string type { get; set; }
-            public Dbdata dbdata { get; set; }
-        }
-
-        public class Root_Files
-        {
-            public string stat_message { get; set; }
-            public Data_Files data { get; set; }
-            public bool success { get; set; }
-        }
-
-        public class ZoneAliases
-        {
-            public string side { get; set; }
-            public string bottom { get; set; }
-            public string zone4 { get; set; }
-            public string zone5 { get; set; }
-            public string zone6 { get; set; }
-        }
-
-        public class UiDefaults
-        {
-            public string playlistView { get; set; }
-        }
-
-        public class Settings
-        {
-            public ZoneAliases zoneAliases { get; set; }
-            public UiDefaults uiDefaults { get; set; }
-            public bool signupForBeta { get; set; }
-            public bool serveOldUi { get; set; }
-            public bool newLayoutsEnable { get; set; }
-            public bool systemMessagesHide { get; set; }
-            public bool forceTvOn { get; set; }
-            public bool disableCECPowerCheck { get; set; }
-            public bool hideWelcomeNotice { get; set; }
-            public int defaultDuration { get; set; }
-            public string language { get; set; }
-            public object sshPassword { get; set; }
-            public bool enableLog { get; set; }
-            public bool subscribeForAlerts { get; set; }
-            public int reportIntervalMinutes { get; set; }
-            public bool enableYoutubeDl { get; set; }
-            public bool licenseOnly { get; set; }
-            public bool shareableLabels { get; set; }
-            public bool playerAutoRegistration { get; set; }
-            public bool disableDownload { get; set; }
-            public bool disablePlayerDownloadOnModem { get; set; }
-        }
-
-        public class UserInfo
-        {
-            public string username { get; set; }
-            public string email { get; set; }
-            public string role { get; set; }
-            public string provider { get; set; }
-            public Settings settings { get; set; }
-            public string _id { get; set; }
-        }
-
-        public class Root_Session
-        {
-            public UserInfo userInfo { get; set; }
-            public string token { get; set; }
-        }
-
-        public class Datum_Files_Upload
-        {
-            public string name { get; set; }
-            public int size { get; set; }
-            public string type { get; set; }
-        }
-
-        public class Root_Files_Upload
-        {
-            public string stat_message { get; set; }
-            public List<Datum_Files_Upload> data { get; set; }
-            public bool success { get; set; }
-        }
-
-        public class Rss
-        {
-            public bool enable { get; set; }
-            public object link { get; set; }
-            public int feedDelay { get; set; }
-        }
-
-        public class Ticker
-        {
-            public bool enable { get; set; }
-            public string behavior { get; set; }
-            public int textSpeed { get; set; }
-            public Rss rss { get; set; }
-        }
-
-        public class Ads
-        {
-            public bool adPlaylist { get; set; }
-            public int adCount { get; set; }
-            public int adInterval { get; set; }
-        }
-
-        public class Audio
-        {
-            public bool enable { get; set; }
-            public bool random { get; set; }
-            public int volume { get; set; }
-        }
-
-        public class Settings_Playlists
-        {
-            public Ticker ticker { get; set; }
-            public Ads ads { get; set; }
-            public Audio audio { get; set; }
-        }
-
-        public class Asset
-        {
-            public string filename { get; set; }
-            public int duration { get; set; }
-            public bool fullscreen { get; set; }
-            public bool isVideo { get; set; }
-            public bool selected { get; set; }
-            public bool deleted { get; set; }
-        }
-
-        public class ZoneVideoWindow
-        {
-        }
-
-        public class Schedule
-        {
-        }
-
-        public class Data_Playlists
-        {
-            public Settings_Playlists settings { get; set; }
-            public string layout { get; set; }
-            public List<Asset> assets { get; set; }
-            public object videoWindow { get; set; }
-            public ZoneVideoWindow zoneVideoWindow { get; set; }
-            public string templateName { get; set; }
-            public Schedule schedule { get; set; }
-            public object groupIds { get; set; }
-            public List<object> labels { get; set; }
-        }
-
-        public class Root_Playlists
-        {
-            public string stat_message { get; set; }
-            public Data_Playlists data { get; set; }
-            public bool success { get; set; }
-        }
-
-        public class Asset_Files
-        {
-            public string filename { get; set; }
-            public int duration { get; set; }
-            public bool selected { set; get; }
-            public bool isVideo { set; get; }
-            public bool dragSelected { set; get; }
-            public bool fullscreen { get; set; }
-        }
-
-        public class Group
-        {
-            public string name { get; set; }
-            public string _id { get; set; }
-        }
-
-        public class Object
-        {
-            public Group group { get; set; }
-            public CreatedBy createdBy { get; set; }
-            public object lastUpload { get; set; }
-            public bool newSocketIo { get; set; }
-            public bool webSocket { get; set; }
-            public bool registered { get; set; }
-            public bool serverServiceDisabled { get; set; }
-            public List<object> labels { get; set; }
-            public string installation { get; set; }
-            public bool licensed { get; set; }
-            public bool cecTvStatus { get; set; }
-            public bool disabled { get; set; }
-            public string _id { get; set; }
-            public string version { get; set; }
-            public string platform_version { get; set; }
-            public string cpuSerialNumber { get; set; }
-            public string myIpAddress { get; set; }
-            public string ethMac { get; set; }
-            public string wifiMac { get; set; }
-            public string ip { get; set; }
-            public bool playlistOn { get; set; }
-            public string currentPlaylist { get; set; }
-            public object playlistStarttime { get; set; }
-            public string diskSpaceUsed { get; set; }
-            public string diskSpaceAvailable { get; set; }
-            public string duration { get; set; }
-            public bool tvStatus { get; set; }
-            public DateTime lastReported { get; set; }
-            public string socket { get; set; }
-            public DateTime createdAt { get; set; }
-            public bool isConnected { get; set; }
-            public int __v { get; set; }
-            public string TZ { get; set; }
-            public string name { get; set; }
-            public bool syncInProgress { get; set; }
-            public string wgetSpeed { get; set; }
-            public string uptime { get; set; }
-            public string piTemperature { get; set; }
-            public string wgetBytes { get; set; }
-        }
-
-        public class CurrentVersion
-        {
-            public string version { get; set; }
-            public string versionP2 { get; set; }
-        }
-
-        public class Data_Player
-        {
-            public List<Object> objects { get; set; }
-            public int page { get; set; }
-            public int pages { get; set; }
-            public int count { get; set; }
-            public CurrentVersion currentVersion { get; set; }
-        }
-
-        public class Root_Player
-        {
-            public string stat_message { get; set; }
-            public Data_Player data { get; set; }
-            public bool success { get; set; }
-        }
-
-
-
-        #endregion
-
         private void checkNowToolStripMenuItem_Click(object sender, EventArgs e)
         {
             timerRefresh_Tick(null, null);
@@ -801,7 +526,7 @@ namespace PiSignageWatcher
             frm.ShowDialog();
         }
 
-        private async void onToolStripMenuItem_Click(object sender, EventArgs e)
+        public async void onToolStripMenuItem_Click(object sender, EventArgs e)
         {
             libmiroppb.Log("Turning all On");
             foreach (ClTV tv in tvs)
@@ -813,7 +538,7 @@ namespace PiSignageWatcher
             }
         }
 
-        private async void offToolStripMenuItem_Click(object sender, EventArgs e)
+        public async void offToolStripMenuItem_Click(object sender, EventArgs e)
         {
             libmiroppb.Log("Turning all Off");
             foreach (ClTV tv in tvs)
@@ -831,23 +556,23 @@ namespace PiSignageWatcher
             reDeployGroup(i.Text);
         }
 
-        private void reDeployGroup(string groupID)
+        public void reDeployGroup(string groupName)
         {
             //get file with KEY
             using (SQLiteConnection conn = GetSQLConnection())
             {
-                ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{groupID}'").FirstOrDefault();
+                ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{groupName}'").FirstOrDefault();
                 ClDeployOptions deployOptions = new ClDeployOptions()
                 {
                     assets = new string[]
                     {
                         files.filename,
-                        "__" + groups.Where(x => x.name == groupID).First().name + ".json",
+                        "__" + groups.Where(x => x.name == groupName).First().name + ".json",
                         "custom_layout.html"
                     }
                 };
-                string group = SendRequest("/groups/" + groups.Where(x => x.name == groupID).First().hex, Method.Post, deployOptions);
-                libmiroppb.Log($"Deployed {groupID}, with options:{deployOptions}, Response: {group}");
+                string group = SendRequest("/groups/" + groups.Where(x => x.name == groupName).First().hex, Method.Post, deployOptions);
+                libmiroppb.Log($"Deployed {groupName}, with options:{deployOptions.ToString()}, Response: {group}");
             }
         }
 
@@ -857,10 +582,10 @@ namespace PiSignageWatcher
             rebootGroup(i.Text);
         }
 
-        private void rebootGroup(string TVID)
+        public void rebootGroup(string groupName)
         {
-            libmiroppb.Log("Rebooting TV: " + tvs.Where(x => x.name == TVID).First().name);
-            SendRequest("/pishell/" + tvs.Where(x => x.name == TVID).First().hex, Method.Post, new { cmd = "shutdown -r now" });
+            libmiroppb.Log("Rebooting TV: " + tvs.Where(x => x.name == groupName).First().name);
+            SendRequest("/pishell/" + tvs.Where(x => x.name == groupName).First().hex, Method.Post, new { cmd = "shutdown -r now" });
         }
 
         private async Task SendNotificationAsync(string text)

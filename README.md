@@ -10,6 +10,12 @@ PiSignage Watcher is an application that runs in the background, and does the fo
 - If a video is present on PiSignage but not on the Google Drive, the video is removed from PiSignage
 - Option for schedule to turn off/on TVs
 - Ability to view Player name/ID, and add to database
+- API that allows you to control the application (mostly) through the web.
+	- Force Re-check
+	- Reboot
+	- ReDeploy
+	- Turn All Off/On
+	- History from the log
 
 The login settings for PiSignage and file-tracking is kept in a sqlite database, along with the API info/hashes
 
