@@ -173,56 +173,64 @@ namespace PiSignageWatcher
                         GoogleDownloadFile(file.Value, file.Key);
                         libmiroppb.Log("Downloaded: " + file.Key);
 
-                        File.Move(file.Key, file.Key.Replace(",", ""));
-
-                        //and then upload to pisignage
-                        string up = "";
-                        while (up == "") //1.20.22 In case uploading fails (for unknown reason)
+                        if (File.Exists(file.Key))
                         {
-                            up = Upload("/files", file.Key);
-                            libmiroppb.Log("Upload attempt: " + file.Key + ", Response: " + up);
-                            _ = SendNotificationAsync("Upload attempt " + file.Key);
+                            File.Move(file.Key, file.Key.Replace(",", ""));
+
+                            //and then upload to pisignage
+                            string up = "";
+                            while (up == "" || up == null) //1.20.22 In case uploading fails (for unknown reason)
+                            {
+                                up = Upload("/files", file.Key);
+                                libmiroppb.Log("Upload attempt: " + file.Key + ", Response: " + up);
+                                _ = SendNotificationAsync("Upload attempt " + file.Key);
+                            }
+                            libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
+                            _ = SendNotificationAsync("Uploaded " + file.Key);
+
+                            File.Delete(file.Key);
+                            libmiroppb.Log("Deleted local file: " + file.Key);
+
+                            Root_Files_Upload rfu = JsonConvert.DeserializeObject<Root_Files_Upload>(up);
+                            //process upload
+                            string post = SendRequest("/postupload", Method.Post, new { files = rfu.data });
+                            libmiroppb.Log("PostUpload: " + file.Key + ", Response: " + post);
+                            await Task.Delay(1000);
+
+                            //we'll have only 1 file per TV, for now
+                            string json = SendRequest("/files/" + file.Key, Method.Get, null);
+                            libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
+                            Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
+
+                            //add current file to playlist
+                            Asset_Files af = new()
+                            {
+                                filename = file.Key,
+                                dragSelected = false,
+                                fullscreen = true,
+                                isVideo = true,
+                                selected = true,
+                                duration = Convert.ToInt32(rf.data.dbdata.duration)
+                            };
+                            object[] resArray = new object[] { af };
+                            string pl = playlists.First(x => x.search == file.Key.Split(' ')[0]).name; //playlist associated with current file
+                            string playlistResponse = SendRequest("/playlists/" + pl, Method.Post, new { assets = resArray });
+                            libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlistResponse);
+
+                            //add file to database
+                            using (SQLiteConnection conn = GetSQLConnection())
+                            {
+                                conn.Execute($"INSERT INTO files VALUES('{file.Key}', '{pl}');");
+                            }
+                            libmiroppb.Log("Added " + file.Key + " to the database");
+
+                            changes = true;
                         }
-                        libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
-                        _ = SendNotificationAsync("Uploaded " + file.Key);
-
-                        File.Delete(file.Key);
-                        libmiroppb.Log("Deleted local file: " + file.Key);
-
-                        Root_Files_Upload rfu = JsonConvert.DeserializeObject<Root_Files_Upload>(up);
-                        //process upload
-                        string post = SendRequest("/postupload", Method.Post, new { files = rfu.data });
-                        libmiroppb.Log("PostUpload: " + file.Key + ", Response: " + post);
-                        await Task.Delay(1000);
-
-                        //we'll have only 1 file per TV, for now
-                        string json = SendRequest("/files/" + file.Key, Method.Get, null);
-                        libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
-                        Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
-
-                        //add current file to playlist
-                        Asset_Files af = new()
+                        else
                         {
-                            filename = file.Key,
-                            dragSelected = false,
-                            fullscreen = true,
-                            isVideo = true,
-                            selected = true,
-                            duration = Convert.ToInt32(rf.data.dbdata.duration)
-                        };
-                        object[] resArray = new object[] { af };
-                        string pl = playlists.First(x => x.search == file.Key.Split(' ')[0]).name; //playlist associated with current file
-                        string playlistResponse = SendRequest("/playlists/" + pl, Method.Post, new { assets = resArray });
-                        libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlistResponse);
-
-                        //add file to database
-                        using (SQLiteConnection conn = GetSQLConnection())
-                        {
-                            conn.Execute($"INSERT INTO files VALUES('{file.Key}', '{pl}');");
+                            //file doesn't exist for some reason...
+                            libmiroppb.Log("File doesn't exist. Will try to redownload next time...");
                         }
-                        libmiroppb.Log("Added " + file.Key + " to the database");
-
-                        changes = true;
                     }
                 }
                 foreach (string a in db_files)
