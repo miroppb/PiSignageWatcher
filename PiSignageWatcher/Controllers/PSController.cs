@@ -1,16 +1,12 @@
-﻿using Google.Apis.Drive.v3.Data;
-using Microsoft.AspNetCore.Cors;
+﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Dapper;
 using System.Data.SQLite;
 using System.Windows.Forms;
 using System.IO;
-using System.Reflection;
 
 namespace PiSignageWatcher.Controllers
 {
@@ -20,9 +16,10 @@ namespace PiSignageWatcher.Controllers
     public class PSController : ControllerBase
     {
         [HttpGet]
-        public IEnumerable<string> Get()
+        public ContentResult Get()
         {
-            return new string[] { "Hello" };
+            var html = System.IO.File.ReadAllText(@"api.html");
+            return base.Content(html, "text/html");
         }
 
         [HttpGet("{endpoint}")]

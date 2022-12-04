@@ -121,19 +121,34 @@ namespace PiSignageWatcher
             };
 
             string json = SendRequest("/session", Method.Post, data, false);
-
-            Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
-            while (t == null)
+            while (json == null)
             {
-                libmiroppb.Log("Token not provided, retrying after 1 minute...");
-                //retrying after a few minutes... //2.24.22
+                libmiroppb.Log("Session not provided, retrying after 1 minute...");
+                //retrying after a minute... //10.15.22
                 await Task.Delay(60000);
                 json = SendRequest("/session", Method.Post, data, false);
-                t = JsonConvert.DeserializeObject<Root_Session>(json);
             }
-            token = t.token;
-            libmiroppb.Log("Refreshed token: " + token);
-            return true;
+
+            try
+            {
+                Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
+                while (t == null)
+                {
+                    libmiroppb.Log("Token not provided, retrying after 1 minute...");
+                    //retrying after a few minutes... //2.24.22
+                    await Task.Delay(60000);
+                    json = SendRequest("/session", Method.Post, data, false);
+                    t = JsonConvert.DeserializeObject<Root_Session>(json);
+                }
+                token = t.token;
+                libmiroppb.Log("Refreshed token: " + token);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                libmiroppb.Log("Refreshed not refreshed. Something failed: " + ex.Message);
+                return false;
+            }
         }
 
         public async void timerRefresh_Tick(object sender, EventArgs e)
@@ -141,7 +156,6 @@ namespace PiSignageWatcher
             //lets get authenticated
             if (await refreshToken())
             {
-                bool changes = false;
 
                 //get list of files
                 libmiroppb.Log("Getting list of Google Drive files...");
@@ -224,7 +238,8 @@ namespace PiSignageWatcher
                             }
                             libmiroppb.Log("Added " + file.Key + " to the database");
 
-                            changes = true;
+                            groups.Where(x => x.name == pl).First().changed = true;
+
                         }
                         else
                         {
@@ -241,7 +256,6 @@ namespace PiSignageWatcher
                         //remove db file from pisignage
                         string files = SendRequest("/files/" + a, Method.Delete, null);
                         libmiroppb.Log("Deleted file: " + a + ", Response: " + files);
-                        changes = true;
 
                         //and database
                         using (SQLiteConnection conn = GetSQLConnection())
@@ -251,17 +265,18 @@ namespace PiSignageWatcher
                         libmiroppb.Log("Deleted file " + a + " from database");
                     }
                 }
-                //Deploy each group if something was changed
-                if (changes)
+                //Deploy the group that was changed
+                foreach (ClGroups group in groups.Where(x => x.changed))
                 {
-                    foreach (ClGroups group in groups)
+                    libmiroppb.Log("Waiting 30 seconds...");
+                    await Task.Delay(30000); //1.30.22 Waiting 30 seconds
+                    using (SQLiteConnection conn = GetSQLConnection())
                     {
-                        libmiroppb.Log("Waiting 30 seconds...");
-                        await Task.Delay(30000); //1.30.22 Waiting 30 seconds
-                        using (SQLiteConnection conn = GetSQLConnection())
+                        ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{group.name}'").FirstOrDefault();
+                        ClDeployOptions deployOptions = null;
+                        try
                         {
-                            ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{group.name}'").FirstOrDefault();
-                            ClDeployOptions deployOptions = new ClDeployOptions()
+                            deployOptions = new ClDeployOptions()
                             {
                                 assets = new string[]
                                 {
@@ -273,8 +288,13 @@ namespace PiSignageWatcher
                             string groupResponse = SendRequest("/groups/" + group.hex, Method.Post, deployOptions);
                             libmiroppb.Log("Deployed " + group.name + ", Response: " + groupResponse);
                         }
+                        catch (Exception ex)
+                        {
+                            libmiroppb.Log($"Deployed failed. Message: {ex.Message}, deployOptions: {files.filename}, __{groups.Where(x => x.name == group.name).First().name}.json, {group.hex}");
+                        }
                     }
                 }
+                groups.ForEach(x => x.changed = false );
             }
         }
 

@@ -21,6 +21,7 @@ class ClGroups
 {
     public string name { get; set; }
     public string hex { get; set; }
+    public bool changed { get; set; } = false;
 }
 
 class ClPlaylists
