@@ -1,22 +1,49 @@
 ﻿<!DOCTYPE html>
 <html>
-	<head>
-		<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-		<title>Junk</title>
-		<script>
-		$(document).ready(function() {
-            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/getdevices", function(data) {
-				$.each(data, function(key, value) {
+<head>
+	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<title>Junk</title>
+	<style>
+		.btn {
+			flex: 1 1 auto;
+			margin: 10px;
+			padding: 50px;
+			text-align: center;
+			text-transform: uppercase;
+			transition: 0.5s;
+			background-size: 100% auto;
+			color: white;
+			/* text-shadow: 0px 0px 10px rgba(0,0,0,0.2);*/
+			box-shadow: 0 0 20px #eee;
+			border-radius: 10px;
+			font-size: 20px;
+		}
+
+			.btn:hover {
+				background-position: center top;
+				background-size: 150% auto; /* change the direction of the change here */
+			}
+
+			.btn:disabled {
+				background-image: radial-gradient(#333, #999);
+			}
+
+        .btn-1 {
+            background-image: radial-gradient(#35ae90, #3554ae);
+        }
+	</style>
+	<script>
+		$(document).ready(function () {
+			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/getdevices", function (data) {
+				$.each(data, function (key, value) {
 					var button_reboot = $('<button/>', {
 						text: value.name,
-						class: 'btn',
-						style: "padding: 5px 10px; margin: 5px 10px;",
+						class: 'btn btn-1',
 						click: function () { ClickReboot(value.name) }
 					});
 					var button_redeploy = $('<button/>', {
 						text: value.name,
-						class: 'btn',
-						style: "padding: 5px 10px; margin: 5px 10px;",
+						class: 'btn btn-1',
 						click: function () { ClickRedeploy(value.name) }
 					});
 					$('#rebootDevices').append(button_reboot);
@@ -24,40 +51,32 @@
 				});
 			});
 		});
-		function ClickReboot(group)
-		{
-            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/reboot/" + group, function(data)
-			{
+		function ClickReboot(group) {
+			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/reboot/" + group, function (data) {
 				$('#results').val(data.message);
 			});
 		}
-		function ClickRedeploy(group)
-		{
-            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/redeploy/" + group, function(data)
-			{
+		function ClickRedeploy(group) {
+			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/redeploy/" + group, function (data) {
 				$('#results').val(data.message);
 			});
 		}
-		function ClickPower(option)
-		{
-            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/powerall/" + option, function(data)
-			{
+		function ClickPower(option) {
+			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/powerall/" + option, function (data) {
 				$('#results').val(data.message);
 			});
 		}
-		function ShowHistory(option)
-		{
-            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/history", function(data)
-			{
+		function ShowHistory(option) {
+			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/history", function (data) {
 				$('#results').val("");
-				$.each(data, function(index) {
+				$.each(data, function (index) {
 					$('#results').val($('#results').val() + data[index] + "\n");
 				});
-				
+
 			});
 		}
-		</script>
-	</head>
+	</script>
+</head>
 	<body>
 		<div id="rebootDevices" style="width: 700px; margin: auto; text-align: center;">
 			Reboot:
@@ -66,8 +85,8 @@
 			Redeploy:
 		</div>
 		<div style="width: 700px; margin: auto; text-align: center;">
-			Turn All: <button id="turnOff" style="padding: 5px 10px; margin: 5px 10px;" onclick="ClickPower('off');">Off</button>
-			<button id="turnOn" style="padding: 5px 10px; margin: 5px 10px;" onclick="ClickPower('on');">On</button>
+			Turn All: <button id="turnOff" class="btn btn-1" onclick="ClickPower('off');">Off</button>
+			<button id="turnOn" class="btn btn-1" onclick="ClickPower('on');">On</button>
 			<br />
 			<button style="padding: 5px 10px; margin: 5px 10px;" onclick="ShowHistory();">Show History</button>
 			<br />
