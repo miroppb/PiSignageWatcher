@@ -156,7 +156,6 @@ namespace PiSignageWatcher
             //lets get authenticated
             if (await refreshToken())
             {
-
                 //get list of files
                 libmiroppb.Log("Getting list of Google Drive files...");
                 Dictionary<string, string> gd_files = GetGoogleDriveFiles();
@@ -240,11 +239,13 @@ namespace PiSignageWatcher
 
                             groups.Where(x => x.name == pl).First().changed = true;
 
+                            timerRefresh.Interval = 60 * 60 * 1000;
                         }
                         else
                         {
                             //file doesn't exist for some reason...
                             libmiroppb.Log("File doesn't exist. Will try to redownload next time...");
+                            timerRefresh.Interval = 60 * 1000; //01.08.23 Try a minute later, not an hour later
                         }
                     }
                 }

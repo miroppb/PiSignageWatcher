@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html>
+<html>
+	<head>
+		<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+		<title>Junk</title>
+		<script>
+		$(document).ready(function() {
+            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/getdevices", function(data) {
+				$.each(data, function(key, value) {
+					var button_reboot = $('<button/>', {
+						text: value.name,
+						class: 'btn',
+						style: "padding: 5px 10px; margin: 5px 10px;",
+						click: function () { ClickReboot(value.name) }
+					});
+					var button_redeploy = $('<button/>', {
+						text: value.name,
+						class: 'btn',
+						style: "padding: 5px 10px; margin: 5px 10px;",
+						click: function () { ClickRedeploy(value.name) }
+					});
+					$('#rebootDevices').append(button_reboot);
+					$('#redeployDevices').append(button_redeploy);
+				});
+			});
+		});
+		function ClickReboot(group)
+		{
+            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/reboot/" + group, function(data)
+			{
+				$('#results').val(data.message);
+			});
+		}
+		function ClickRedeploy(group)
+		{
+            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/redeploy/" + group, function(data)
+			{
+				$('#results').val(data.message);
+			});
+		}
+		function ClickPower(option)
+		{
+            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/powerall/" + option, function(data)
+			{
+				$('#results').val(data.message);
+			});
+		}
+		function ShowHistory(option)
+		{
+            $.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/history", function(data)
+			{
+				$('#results').val("");
+				$.each(data, function(index) {
+					$('#results').val($('#results').val() + data[index] + "\n");
+				});
+				
+			});
+		}
+		</script>
+	</head>
+	<body>
+		<div id="rebootDevices" style="width: 700px; margin: auto; text-align: center;">
+			Reboot:
+		</div>
+		<div id="redeployDevices" style="width: 700px; margin: auto; text-align: center;">
+			Redeploy:
+		</div>
+		<div style="width: 700px; margin: auto; text-align: center;">
+			Turn All: <button id="turnOff" style="padding: 5px 10px; margin: 5px 10px;" onclick="ClickPower('off');">Off</button>
+			<button id="turnOn" style="padding: 5px 10px; margin: 5px 10px;" onclick="ClickPower('on');">On</button>
+			<br />
+			<button style="padding: 5px 10px; margin: 5px 10px;" onclick="ShowHistory();">Show History</button>
+			<br />
+			<textarea id="results" style="width: 670px; height: 300px;" ></textarea>
+		</div>
+		
+	</body>
+</html>
