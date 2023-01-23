@@ -22,7 +22,7 @@ namespace PiSignageWatcher
     public partial class FrmMain : Form
     {
         private string APIUrl = null;
-        private string gDrive = null;
+        private string GDrive = null;
         private string Prowl = null;
         protected string token = "";
         private List<ClGroups> groups = new List<ClGroups>();
@@ -50,7 +50,7 @@ namespace PiSignageWatcher
             {
                 ClSettings settings = conn.Query<ClSettings>("SELECT api, gdrive, prowl FROM settings").FirstOrDefault();
                 APIUrl = settings.api;
-                gDrive = settings.gdrive;
+                GDrive = settings.gdrive;
                 Prowl = settings.prowl;
             }
 
@@ -515,31 +515,40 @@ namespace PiSignageWatcher
 
         private async void timerSchedule_Tick(object sender, EventArgs e)
         {
-            //should be easy peasy right?
-            foreach (ClSchedule a in Action)
+            if (await refreshToken())
             {
-                if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOffTV)
-                {
-                    libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
-                    await Task.Delay(10000);
-                    libmiroppb.Log("Turning Off Tv: " + a.tv.name);
-                    SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = true }); //true is off
-                }
-                else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOnTV)
-                {
-                    libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
-                    await Task.Delay(10000);
-                    libmiroppb.Log("Turning On Tv: " + a.tv.name);
-                    SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = false }); //false is on
-                }
-                else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.Reboot)
-                {
-                    libmiroppb.Log("Waiting 10 seconds...");
-                    await Task.Delay(10000);
-                    libmiroppb.Log("Rebooting TV: " + a.tv.name);
-                    SendRequest("/pishell/" + a.tv.hex, Method.Post, new { cmd = "shutdown -r now" });
-                }
-            }
+				//should be easy peasy right?
+				foreach (ClSchedule a in Action)
+				{
+					if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOffTV)
+					{
+						libmiroppb.Log("Turning Off Tv: " + a.tv.name);
+						SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = true }); //true is off
+					}
+					else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOnTV)
+					{
+                        if (CheckOnlineTVStatus(a.tv.hex).Result.Item1!.Value)
+                        {
+                            libmiroppb.Log("Turning On Tv: " + a.tv.name);
+                            SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = false }); //false is on
+                        }
+                        else
+                            await SendNotificationAsync($"TV {a.tv.name} is offline");
+					}
+					else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.Reboot)
+					{
+                        if (CheckOnlineTVStatus(a.tv.hex).Result.Item1!.Value)
+                        {
+                            libmiroppb.Log("Rebooting TV: " + a.tv.name);
+                            SendRequest("/pishell/" + a.tv.hex, Method.Post, new { cmd = "shutdown -r now" });
+                        }
+						else
+							await SendNotificationAsync($"TV {a.tv.name} is offline");
+					}
+					libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests. Moved 01.22.23
+					await Task.Delay(10000);
+				}
+			}
         }
 
         private void showPlayerIDsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -633,7 +642,39 @@ namespace PiSignageWatcher
             var responseString = await response.Content.ReadAsStringAsync();
         }
 
-        SQLiteConnection GetSQLConnection()
+        private async Task<(bool?, bool?)> CheckOnlineTVStatus(string hex)
+        {
+            if (await refreshToken())
+            {
+                string json = SendRequest("/players", Method.Get, null);
+                Root_Player player = JsonConvert.DeserializeObject<Root_Player>(json);
+                bool connected = player.data.objects.Where(x => x._id == hex).FirstOrDefault().isConnected;
+                bool cec = player.data.objects.Where(x => x._id == hex).FirstOrDefault().cecTvStatus;
+				return (connected, cec);
+            }
+            else
+                return (null, null);
+		}
+
+        public bool? CheckOnlineStatus(string name)
+        {
+            string hex = tvs.Where(x => x.name == name).FirstOrDefault().hex;
+            if (hex == null)
+                return CheckOnlineTVStatus(hex).Result.Item1.Value;
+            else
+                return null;
+        }
+
+        public Dictionary<string, (bool?, bool?)> CheckAllDevicesOnlineStatus()
+        {
+            Dictionary<string, (bool?, bool?)> statuses = new Dictionary<string, (bool?, bool?)>();
+            foreach (ClTV tv in tvs)
+                statuses.Add(tv.name, CheckOnlineTVStatus(tv.hex).Result);
+            return statuses;
+        }
+
+
+		SQLiteConnection GetSQLConnection()
         {
             return new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
         }

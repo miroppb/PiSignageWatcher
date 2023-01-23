@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 /PiSignageWatcher/Config.cs
 /upgrade-assistant.clef
+
+# miro
+secrets.cs

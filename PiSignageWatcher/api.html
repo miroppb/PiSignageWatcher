@@ -2,7 +2,8 @@
 <html>
 <head>
 	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-	<title>Junk</title>
+	<title>PiSignage Watcher</title>
+	<link rel="icon" type="image/x-icon" href="/favicon.ico">
 	<style>
 		.btn {
 			flex: 1 1 auto;
@@ -28,9 +29,9 @@
 				background-image: radial-gradient(#333, #999);
 			}
 
-        .btn-1 {
-            background-image: radial-gradient(#35ae90, #3554ae);
-        }
+		.btn-1 {
+			background-image: radial-gradient(#35ae90, #3554ae);
+		}
 	</style>
 	<script>
 		$(document).ready(function () {
@@ -38,19 +39,31 @@
 				$.each(data, function (key, value) {
 					var button_reboot = $('<button/>', {
 						text: value.name,
-						class: 'btn btn-1',
+						class: 'btn btn-1 ' + value.name,
 						click: function () { ClickReboot(value.name) }
 					});
 					var button_redeploy = $('<button/>', {
 						text: value.name,
-						class: 'btn btn-1',
+						class: 'btn btn-1 ' + value.name,
 						click: function () { ClickRedeploy(value.name) }
 					});
 					$('#rebootDevices').append(button_reboot);
 					$('#redeployDevices').append(button_redeploy);
 				});
 			});
+			setInterval(function () {
+				RefreshStatus();
+			}, 5000);
+			RefreshStatus();
 		});
+		function RefreshStatus() {
+			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/status", function (data) {
+				$.each(data, function (key, value) {
+					if (!value.isOnline) { $('.' + value.name).css("background-image", "radial-gradient(#454545, #808080)"); $('.' + value.name).prop("disabled", true); }
+					else { $('.' + value.name).prop("disabled", false); }
+				});
+			});
+		}
 		function ClickReboot(group) {
 			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/reboot/" + group, function (data) {
 				$('#results').val(data.message);
