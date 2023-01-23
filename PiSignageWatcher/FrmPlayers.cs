@@ -1,15 +1,14 @@
 ﻿using System;
-using System.Data.SQLite;
 using System.IO;
 using System.Windows.Forms;
+using Dapper;
 using miroppb;
+using MySql.Data.MySqlClient;
 
 namespace PiSignageWatcher
 {
     public partial class FrmPlayers : Form
     {
-        public SQLiteConnection dbConnection = new SQLiteConnection();
-
         public FrmPlayers()
         {
             InitializeComponent();
@@ -22,33 +21,16 @@ namespace PiSignageWatcher
 
         private void BtnAdd_Click(object sender, EventArgs e)
         {
-            ExecuteNonQuery("DELETE FROM tvs");
+			using (MySqlConnection conn = Secrets.GetConnectionString())
+				conn.Execute("DELETE FROM tvs");
             foreach (DataGridViewRow row in DgvPlayers.Rows)
             {
-                ExecuteNonQuery("INSERT INTO tvs VALUES('" + row.Cells[0].Value + "', '" + row.Cells[1].Value + "');");
+				using (MySqlConnection conn = Secrets.GetConnectionString())
+					conn.Execute("INSERT INTO tvs VALUES('" + row.Cells[0].Value + "', '" + row.Cells[1].Value + "');");
                 libmiroppb.Log("INSERT INTO tvs VALUES('" + row.Cells[0].Value + "', '" + row.Cells[1].Value + "');");
             }
             MessageBox.Show("Done inserting");
             this.Close();
-        }
-
-        public int ExecuteNonQuery(string sql)
-        {
-            try
-            {
-                SQLiteConnection conn = new SQLiteConnection(dbConnection);
-                conn.Open();
-                SQLiteCommand comm = new SQLiteCommand(conn);
-                comm.CommandText = sql;
-                int rowsUpdated = comm.ExecuteNonQuery();
-                conn.Close();
-                return rowsUpdated;
-            }
-            catch (Exception ex)
-            {
-                StreamWriter w = new StreamWriter("error.txt"); w.WriteLine(ex.Message.ToString()); w.WriteLine(sql); w.Close();
-                return -1;
-            }
         }
     }
 }

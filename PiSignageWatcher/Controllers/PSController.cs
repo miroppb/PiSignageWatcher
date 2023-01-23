@@ -1,12 +1,11 @@
 ﻿using Dapper;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
 using System.IO;
 using System.Linq;
-using System.Windows.Forms;
 
 namespace PiSignageWatcher.Controllers
 {
@@ -38,7 +37,7 @@ namespace PiSignageWatcher.Controllers
 					Program.frm.timerRefresh_Tick(null, null);
 					break;
 				case "getdevices":
-					using (SQLiteConnection conn = GetSQLConnection())
+					using (MySqlConnection conn = Secrets.GetConnectionString())
 						ret = conn.Query<ClGroups>("SELECT name FROM groups").ToList();
 					break;
 				case "status":
@@ -62,7 +61,7 @@ namespace PiSignageWatcher.Controllers
 			switch (_action)
 			{
 				case "redeploy":
-					using (SQLiteConnection conn = GetSQLConnection())
+					using (MySqlConnection conn = Secrets.GetConnectionString())
 					{
 						if (conn.Query<ClGroups>("SELECT * FROM groups WHERE name = @device", new DynamicParameters(new { device })).FirstOrDefault() != null)
 						{
@@ -90,7 +89,7 @@ namespace PiSignageWatcher.Controllers
 					}
 					break;
 				case "reboot":
-					using (SQLiteConnection conn = GetSQLConnection())
+					using (MySqlConnection conn = Secrets.GetConnectionString())
 					{
 						if (conn.Query<ClGroups>("SELECT * FROM groups WHERE name = @device", new DynamicParameters(new { device })).FirstOrDefault() != null)
 						{
@@ -103,11 +102,6 @@ namespace PiSignageWatcher.Controllers
 					break;
 			}
 			return Ok(ret);
-		}
-
-		SQLiteConnection GetSQLConnection()
-		{
-			return new SQLiteConnection("Data Source=" + Application.StartupPath + "\\db.db;Version=3;");
 		}
 	}
 
