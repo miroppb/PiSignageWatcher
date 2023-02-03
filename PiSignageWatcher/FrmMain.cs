@@ -280,8 +280,7 @@ namespace PiSignageWatcher
 				//Deploy the group that was changed
 				foreach (ClGroups group in groups.Where(x => x.changed))
 				{
-					libmiroppb.Log("Waiting 30 seconds...");
-					await Task.Delay(30000); //1.30.22 Waiting 30 seconds
+					await Wait(30);
 					using (MySqlConnection conn = Secrets.GetConnectionString())
 					{
 						ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{group.name}'").FirstOrDefault();
@@ -534,6 +533,7 @@ namespace PiSignageWatcher
 					{
 						libmiroppb.Log("Turning Off Tv: " + a.tv.name);
 						SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = true }); //true is off
+						await Wait();
 					}
 					else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOnTV)
 					{
@@ -541,6 +541,7 @@ namespace PiSignageWatcher
 						{
 							libmiroppb.Log("Turning On Tv: " + a.tv.name);
 							SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = false }); //false is on
+							await Wait();
 						}
 						else
 							await SendNotificationAsync($"TV {a.tv.name} is offline");
@@ -551,14 +552,20 @@ namespace PiSignageWatcher
 						{
 							libmiroppb.Log("Rebooting TV: " + a.tv.name);
 							SendRequest("/pishell/" + a.tv.hex, Method.Post, new { cmd = "shutdown -r now" });
+							await Wait();
 						}
 						else
 							await SendNotificationAsync($"TV {a.tv.name} is offline");
 					}
-					libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests. Moved 01.22.23
-					await Task.Delay(10000);
+					
 				}
 			}
+		}
+
+		private static async Task Wait(int s = 10)
+		{
+			libmiroppb.Log($"Waiting {s} seconds..."); //02.11.22 Wait between requests
+			await Task.Delay(1000 * s);
 		}
 
 		private void showPlayerIDsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -579,8 +586,7 @@ namespace PiSignageWatcher
 			libmiroppb.Log("Turning all On");
 			foreach (ClTV tv in tvs)
 			{
-				libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests...
-				await Task.Delay(10000);
+				await Wait();
 				libmiroppb.Log("Turning On Tv: " + tv.name);
 				SendRequest("/pitv/" + tv.hex, Method.Post, new { status = false }); //false is on
 			}
@@ -591,8 +597,7 @@ namespace PiSignageWatcher
 			libmiroppb.Log("Turning all Off");
 			foreach (ClTV tv in tvs)
 			{
-				libmiroppb.Log("Waiting 10 seconds..."); //02.11.22 Wait between requests
-				await Task.Delay(10000);
+				await Wait();
 				libmiroppb.Log("Turning Off Tv: " + tv.name);
 				SendRequest("/pitv/" + tv.hex, Method.Post, new { status = true }); //false is on
 			}
