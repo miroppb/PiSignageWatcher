@@ -29,6 +29,7 @@ namespace PiSignageWatcher
 		private List<ClPlaylists> playlists = new List<ClPlaylists>();
 		private List<ClSchedule> Action = new List<ClSchedule>();
 		List<ClTV> tvs = new List<ClTV>();
+		private DateTime LastUpdated = DateTime.MinValue;
 
 		const string announcements_id = Config.announcements_id;
 
@@ -118,47 +119,56 @@ namespace PiSignageWatcher
 
 		private async Task<bool> refreshToken()
 		{
-			ClSettings _settings = null;
-			using (MySqlConnection conn = Secrets.GetConnectionString())
+			if ((LastUpdated -  DateTime.Now).Minutes > 30)
 			{
-				_settings = conn.Query<ClSettings>("SELECT user, pass FROM settings").ToList().FirstOrDefault();
-			}
+				ClSettings _settings = null;
+				using (MySqlConnection conn = Secrets.GetConnectionString())
+				{
+					_settings = conn.Query<ClSettings>("SELECT user, pass FROM settings").ToList().FirstOrDefault();
+				}
 
-			Dictionary<string, string> data = new Dictionary<string, string>
+				Dictionary<string, string> data = new Dictionary<string, string>
 			{
 				{ "email", _settings.user },
 				{ "password", _settings.pass },
 				{ "getToken", "true" }
 			};
 
-			string json = SendRequest("/session", Method.Post, data, false);
-			while (json == null)
-			{
-				libmiroppb.Log("Session not provided, retrying after 1 minute...");
-				//retrying after a minute... //10.15.22
-				await Task.Delay(60000);
-				json = SendRequest("/session", Method.Post, data, false);
-			}
-
-			try
-			{
-				Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
-				while (t == null)
+				string json = SendRequest("/session", Method.Post, data, false);
+				while (json == null)
 				{
-					libmiroppb.Log("Token not provided, retrying after 1 minute...");
-					//retrying after a few minutes... //2.24.22
+					libmiroppb.Log("Session not provided, retrying after 1 minute...");
+					//retrying after a minute... //10.15.22
 					await Task.Delay(60000);
 					json = SendRequest("/session", Method.Post, data, false);
-					t = JsonConvert.DeserializeObject<Root_Session>(json);
 				}
-				token = t.token;
-				libmiroppb.Log("Refreshed token: " + token);
-				return true;
+
+				try
+				{
+					Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
+					while (t == null)
+					{
+						libmiroppb.Log("Token not provided, retrying after 1 minute...");
+						//retrying after a few minutes... //2.24.22
+						await Task.Delay(60000);
+						json = SendRequest("/session", Method.Post, data, false);
+						t = JsonConvert.DeserializeObject<Root_Session>(json);
+					}
+					token = t.token;
+					LastUpdated = DateTime.Now;
+					libmiroppb.Log("Refreshed token: " + token);
+					return true;
+				}
+				catch (Exception ex)
+				{
+					libmiroppb.Log("Refreshed not refreshed. Something failed: " + ex.Message);
+					return false;
+				}
 			}
-			catch (Exception ex)
+			else
 			{
-				libmiroppb.Log("Refreshed not refreshed. Something failed: " + ex.Message);
-				return false;
+				libmiroppb.Log("Not refreshing. Last updated less than 30 minutes ago.");
+				return true;
 			}
 		}
 
