@@ -14,6 +14,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -118,7 +119,7 @@ namespace PiSignageWatcher
 			libmiroppb.Log("Schedule Timer started");
 		}
 
-		private async Task<bool> refreshToken(string sender)
+		private async Task<bool> refreshToken([CallerMemberName] string sender = null)
 		{
 			if (Math.Abs((LastUpdated -  DateTime.Now).Minutes) > 30)
 			{
@@ -176,7 +177,7 @@ namespace PiSignageWatcher
 		public async void timerRefresh_Tick(object sender, EventArgs e)
 		{
 			//lets get authenticated
-			if (await refreshToken("timerRefresh"))
+			if (await refreshToken())
 			{
 				//get list of files
 				libmiroppb.Log("Getting list of Google Drive files...");
@@ -535,7 +536,7 @@ namespace PiSignageWatcher
 
 		private async void timerSchedule_Tick(object sender, EventArgs e)
 		{
-			if (await refreshToken("timerSchedule"))
+			if (await refreshToken())
 			{
 				//should be easy peasy right?
 				foreach (ClSchedule a in Action)
@@ -670,7 +671,7 @@ namespace PiSignageWatcher
 
 		private async Task<(bool?, bool?)> CheckOnlineTVStatus(string hex)
 		{
-			if (await refreshToken("CheckOnline"))
+			if (await refreshToken())
 			{
 				try
 				{
