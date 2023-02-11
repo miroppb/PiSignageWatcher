@@ -10,6 +10,7 @@ using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -117,9 +118,9 @@ namespace PiSignageWatcher
 			libmiroppb.Log("Schedule Timer started");
 		}
 
-		private async Task<bool> refreshToken()
+		private async Task<bool> refreshToken(string sender)
 		{
-			if ((LastUpdated -  DateTime.Now).Minutes > 30)
+			if (Math.Abs((LastUpdated -  DateTime.Now).Minutes) > 30)
 			{
 				ClSettings _settings = null;
 				using (MySqlConnection conn = Secrets.GetConnectionString())
@@ -156,18 +157,18 @@ namespace PiSignageWatcher
 					}
 					token = t.token;
 					LastUpdated = DateTime.Now;
-					libmiroppb.Log("Refreshed token: " + token);
+					libmiroppb.Log($"Called from {sender}. Refreshed token: {token}");
 					return true;
 				}
 				catch (Exception ex)
 				{
-					libmiroppb.Log("Refreshed not refreshed. Something failed: " + ex.Message);
+					libmiroppb.Log($"Called from {sender}. Refreshed not refreshed. Something failed: {ex.Message}");
 					return false;
 				}
 			}
 			else
 			{
-				libmiroppb.Log("Not refreshing. Last updated less than 30 minutes ago.");
+				libmiroppb.Log($"Called from {sender}. Not refreshing. Last updated less than 30 minutes ago.");
 				return true;
 			}
 		}
@@ -175,7 +176,7 @@ namespace PiSignageWatcher
 		public async void timerRefresh_Tick(object sender, EventArgs e)
 		{
 			//lets get authenticated
-			if (await refreshToken())
+			if (await refreshToken("timerRefresh"))
 			{
 				//get list of files
 				libmiroppb.Log("Getting list of Google Drive files...");
@@ -534,7 +535,7 @@ namespace PiSignageWatcher
 
 		private async void timerSchedule_Tick(object sender, EventArgs e)
 		{
-			if (await refreshToken())
+			if (await refreshToken("timerSchedule"))
 			{
 				//should be easy peasy right?
 				foreach (ClSchedule a in Action)
@@ -669,13 +670,21 @@ namespace PiSignageWatcher
 
 		private async Task<(bool?, bool?)> CheckOnlineTVStatus(string hex)
 		{
-			if (await refreshToken())
+			if (await refreshToken("CheckOnline"))
 			{
-				string json = SendRequest("/players", Method.Get, null);
-				Root_Player player = JsonConvert.DeserializeObject<Root_Player>(json);
-				bool connected = player.data.objects.Where(x => x._id == hex).FirstOrDefault().isConnected;
-				bool cec = player.data.objects.Where(x => x._id == hex).FirstOrDefault().cecTvStatus;
-				return (connected, cec);
+				try
+				{
+					string json = SendRequest("/players", Method.Get, null);
+					Root_Player player = JsonConvert.DeserializeObject<Root_Player>(json);
+					Object obj = player.data.objects.FirstOrDefault(x => x._id == hex);
+					bool connected = obj.isConnected;
+					bool cec = obj.cecTvStatus;
+					return (connected, cec);
+				}
+				catch
+				{
+					return (null, null);
+				}
 			}
 			else
 				return (null, null);
