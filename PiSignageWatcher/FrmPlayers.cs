@@ -3,7 +3,7 @@ using System.IO;
 using System.Windows.Forms;
 using Dapper;
 using miroppb;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 
 namespace PiSignageWatcher
 {
