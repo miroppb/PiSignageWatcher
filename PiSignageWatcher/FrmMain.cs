@@ -52,13 +52,15 @@ namespace PiSignageWatcher
 
 			PopulateData();
 
-			System.Windows.Forms.Timer timerRefreshToken = new();
-			timerRefreshToken.Interval = 30 * 60 * 1000;
+			System.Windows.Forms.Timer timerRefreshToken = new()
+			{
+				Interval = 30 * 60 * 1000
+			};
 			timerRefreshToken.Tick += TimerRefreshToken_Tick;
 			TimerRefreshToken_Tick(null, null);
 
 #if !DEBUG
-            timerRefresh_Tick(null, null);
+			timerRefresh_Tick(null, null);
 #endif
 		}
 
@@ -472,9 +474,11 @@ namespace PiSignageWatcher
 		private string Upload(string url, string filename)
 		{
 			RestClient restClient = new(APIUrl);
-			RestRequest restRequest = new(url + "?token=" + token);
-			restRequest.RequestFormat = DataFormat.Json;
-			restRequest.Method = Method.Post;
+			RestRequest restRequest = new(url + "?token=" + token)
+			{
+				RequestFormat = DataFormat.Json,
+				Method = Method.Post
+			};
 			restRequest.AddHeader("Content-Type", "multipart/form-data");
 			restRequest.AddFile("content", filename);
 			var response = restClient.Execute(restRequest);
