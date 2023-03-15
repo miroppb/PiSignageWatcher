@@ -10,7 +10,6 @@ using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -52,9 +51,20 @@ namespace PiSignageWatcher
 			catch { MessageBox.Show("There is no db connection. Exiting application..."); Application.Exit(); }
 
 			PopulateData();
+
+			System.Windows.Forms.Timer timerRefreshToken = new();
+			timerRefreshToken.Interval = 30 * 60 * 1000;
+			timerRefreshToken.Tick += TimerRefreshToken_Tick;
+			TimerRefreshToken_Tick(null, null);
+
 #if !DEBUG
             timerRefresh_Tick(null, null);
 #endif
+		}
+
+		private async void TimerRefreshToken_Tick(object sender, EventArgs e)
+		{
+			await refreshToken();
 		}
 
 		private void PopulateData()
@@ -121,204 +131,192 @@ namespace PiSignageWatcher
 
 		private async Task<bool> refreshToken([CallerMemberName] string sender = null)
 		{
-			if (Math.Abs((LastUpdated -  DateTime.Now).Minutes) > 30)
+			ClSettings _settings = null;
+			using (MySqlConnection conn = Secrets.GetConnectionString())
 			{
-				ClSettings _settings = null;
-				using (MySqlConnection conn = Secrets.GetConnectionString())
-				{
-					_settings = conn.Query<ClSettings>("SELECT user, pass FROM settings").ToList().FirstOrDefault();
-				}
+				_settings = conn.Query<ClSettings>("SELECT user, pass FROM settings").ToList().FirstOrDefault();
+			}
 
-				Dictionary<string, string> data = new Dictionary<string, string>
+			Dictionary<string, string> data = new Dictionary<string, string>
+		{
+			{ "email", _settings.user },
+			{ "password", _settings.pass },
+			{ "getToken", "true" }
+		};
+
+			string json = SendRequest("/session", Method.Post, data, false);
+			while (json == null)
 			{
-				{ "email", _settings.user },
-				{ "password", _settings.pass },
-				{ "getToken", "true" }
-			};
+				libmiroppb.Log("Session not provided, retrying after 1 minute...");
+				//retrying after a minute... //10.15.22
+				await Task.Delay(60000);
+				json = SendRequest("/session", Method.Post, data, false);
+			}
 
-				string json = SendRequest("/session", Method.Post, data, false);
-				while (json == null)
+			try
+			{
+				Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
+				while (t == null)
 				{
-					libmiroppb.Log("Session not provided, retrying after 1 minute...");
-					//retrying after a minute... //10.15.22
+					libmiroppb.Log("Token not provided, retrying after 1 minute...");
+					//retrying after a few minutes... //2.24.22
 					await Task.Delay(60000);
 					json = SendRequest("/session", Method.Post, data, false);
+					t = JsonConvert.DeserializeObject<Root_Session>(json);
 				}
-
-				try
-				{
-					Root_Session t = JsonConvert.DeserializeObject<Root_Session>(json);
-					while (t == null)
-					{
-						libmiroppb.Log("Token not provided, retrying after 1 minute...");
-						//retrying after a few minutes... //2.24.22
-						await Task.Delay(60000);
-						json = SendRequest("/session", Method.Post, data, false);
-						t = JsonConvert.DeserializeObject<Root_Session>(json);
-					}
-					token = t.token;
-					LastUpdated = DateTime.Now;
-					libmiroppb.Log($"Called from {sender}. Refreshed token: {token}");
-					return true;
-				}
-				catch (Exception ex)
-				{
-					libmiroppb.Log($"Called from {sender}. Refreshed not refreshed. Something failed: {ex.Message}");
-					return false;
-				}
-			}
-			else
-			{
-				libmiroppb.Log($"Called from {sender}. Not refreshing. Last updated less than 30 minutes ago.");
+				token = t.token;
+				LastUpdated = DateTime.Now;
+				libmiroppb.Log($"Called from {sender}. Refreshed token: {token}");
 				return true;
+			}
+			catch (Exception ex)
+			{
+				libmiroppb.Log($"Called from {sender}. Refreshed not refreshed. Something failed: {ex.Message}");
+				return false;
 			}
 		}
 
 		public async void timerRefresh_Tick(object sender, EventArgs e)
 		{
-			//lets get authenticated
-			if (await refreshToken())
+			//get list of files
+			libmiroppb.Log("Getting list of Google Drive files...");
+			Dictionary<string, string> gd_files = GetGoogleDriveFiles();
+			if (gd_files == null) { return; }
+			else { foreach (string file in gd_files.Keys) { libmiroppb.Log(file); } } //print each GD file to log
+
+			List<ClFiles> _files = null;
+			using (MySqlConnection conn = Secrets.GetConnectionString())
 			{
-				//get list of files
-				libmiroppb.Log("Getting list of Google Drive files...");
-				Dictionary<string, string> gd_files = GetGoogleDriveFiles();
-				if (gd_files == null) { return; }
-				else { foreach (string file in gd_files.Keys) { libmiroppb.Log(file); } } //print each GD file to log
+				libmiroppb.Log("Getting list of database files...");
+				_files = conn.Query<ClFiles>("SELECT * FROM files").ToList();
+			}
 
-				List<ClFiles> _files = null;
-				using (MySqlConnection conn = Secrets.GetConnectionString())
+			List<string> db_files = new List<string>();
+			libmiroppb.Log("DB files:");
+			foreach (ClFiles file in _files) { db_files.Add(file.filename); libmiroppb.Log(file.filename); }
+
+			//compare the db files with gd files
+			foreach (KeyValuePair<string, string> file in gd_files)
+			{
+				//for each file that doesn't exist already (new file) and starts with a playlist "search" term
+				if (!db_files.Contains(file.Key) && playlists.Any(x => x.search.Contains(file.Key.Split(' ')[0])))
 				{
-					libmiroppb.Log("Getting list of database files...");
-					_files = conn.Query<ClFiles>("SELECT * FROM files").ToList();
-				}
+					libmiroppb.Log("Working on: " + file.Key);
+					_ = SendNotificationAsync("Working on " + file.Key);
 
-				List<string> db_files = new List<string>();
-				libmiroppb.Log("DB files:");
-				foreach (ClFiles file in _files) { db_files.Add(file.filename); libmiroppb.Log(file.filename); }
+					//if gd file exists but db doesnt, we need to download
+					GoogleDownloadFile(file.Value, file.Key);
+					libmiroppb.Log("Downloaded: " + file.Key);
 
-				//compare the db files with gd files
-				foreach (KeyValuePair<string, string> file in gd_files)
-				{
-					//for each file that doesn't exist already (new file) and starts with a playlist "search" term
-					if (!db_files.Contains(file.Key) && playlists.Any(x => x.search.Contains(file.Key.Split(' ')[0])))
+					if (File.Exists(file.Key))
 					{
-						libmiroppb.Log("Working on: " + file.Key);
-						_ = SendNotificationAsync("Working on " + file.Key);
+						File.Move(file.Key, file.Key.Replace(",", ""));
 
-						//if gd file exists but db doesnt, we need to download
-						GoogleDownloadFile(file.Value, file.Key);
-						libmiroppb.Log("Downloaded: " + file.Key);
-
-						if (File.Exists(file.Key))
+						//and then upload to pisignage
+						string up = "";
+						while (up == "" || up == null) //1.20.22 In case uploading fails (for unknown reason)
 						{
-							File.Move(file.Key, file.Key.Replace(",", ""));
-
-							//and then upload to pisignage
-							string up = "";
-							while (up == "" || up == null) //1.20.22 In case uploading fails (for unknown reason)
-							{
-								up = Upload("/files", file.Key);
-								libmiroppb.Log("Upload attempt: " + file.Key + ", Response: " + up);
-								_ = SendNotificationAsync("Upload attempt " + file.Key);
-							}
-							libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
-							_ = SendNotificationAsync("Uploaded " + file.Key);
-
-							File.Delete(file.Key);
-							libmiroppb.Log("Deleted local file: " + file.Key);
-
-							Root_Files_Upload rfu = JsonConvert.DeserializeObject<Root_Files_Upload>(up);
-							//process upload
-							string post = SendRequest("/postupload", Method.Post, new { files = rfu.data });
-							libmiroppb.Log("PostUpload: " + file.Key + ", Response: " + post);
-							await Task.Delay(1000);
-
-							//we'll have only 1 file per TV, for now
-							string json = SendRequest("/files/" + file.Key, Method.Get, null);
-							libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
-							Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
-
-							//add current file to playlist
-							Asset_Files af = new()
-							{
-								filename = file.Key,
-								dragSelected = false,
-								fullscreen = true,
-								isVideo = true,
-								selected = true,
-								duration = Convert.ToInt32(rf.data.dbdata.duration)
-							};
-							object[] resArray = new object[] { af };
-							string pl = playlists.First(x => x.search == file.Key.Split(' ')[0]).name; //playlist associated with current file
-							string playlistResponse = SendRequest("/playlists/" + pl, Method.Post, new { assets = resArray });
-							libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlistResponse);
-
-							//add file to database
-							using (MySqlConnection conn = Secrets.GetConnectionString())
-							{
-								conn.Execute($"INSERT INTO files VALUES('{file.Key}', '{pl}');");
-							}
-							libmiroppb.Log("Added " + file.Key + " to the database");
-
-							groups.Where(x => x.name == pl).First().changed = true;
-
-							timerRefresh.Interval = 60 * 60 * 1000;
+							up = Upload("/files", file.Key);
+							libmiroppb.Log("Upload attempt: " + file.Key + ", Response: " + up);
+							_ = SendNotificationAsync("Upload attempt " + file.Key);
 						}
-						else
+						libmiroppb.Log("Uploaded: " + file.Key + ", Response: " + up);
+						_ = SendNotificationAsync("Uploaded " + file.Key);
+
+						File.Delete(file.Key);
+						libmiroppb.Log("Deleted local file: " + file.Key);
+
+						Root_Files_Upload rfu = JsonConvert.DeserializeObject<Root_Files_Upload>(up);
+						//process upload
+						string post = SendRequest("/postupload", Method.Post, new { files = rfu.data });
+						libmiroppb.Log("PostUpload: " + file.Key + ", Response: " + post);
+						await Task.Delay(1000);
+
+						//we'll have only 1 file per TV, for now
+						string json = SendRequest("/files/" + file.Key, Method.Get, null);
+						libmiroppb.Log("Getting: " + file.Key + ", Response: " + json);
+						Root_Files rf = JsonConvert.DeserializeObject<Root_Files>(json);
+
+						//add current file to playlist
+						Asset_Files af = new()
 						{
-							//file doesn't exist for some reason...
-							libmiroppb.Log("File doesn't exist. Will try to redownload next time...");
-							timerRefresh.Interval = 60 * 1000; //01.08.23 Try a minute later, not an hour later
-						}
-					}
-				}
-				foreach (string a in db_files)
-				{
-					//else if db file exists but gd doesn't
-					if (!gd_files.ContainsKey(a))
-					{
-						//remove db file from pisignage
-						string files = SendRequest("/files/" + a, Method.Delete, null);
-						libmiroppb.Log("Deleted file: " + a + ", Response: " + files);
+							filename = file.Key,
+							dragSelected = false,
+							fullscreen = true,
+							isVideo = true,
+							selected = true,
+							duration = Convert.ToInt32(rf.data.dbdata.duration)
+						};
+						object[] resArray = new object[] { af };
+						string pl = playlists.First(x => x.search == file.Key.Split(' ')[0]).name; //playlist associated with current file
+						string playlistResponse = SendRequest("/playlists/" + pl, Method.Post, new { assets = resArray });
+						libmiroppb.Log("Added to playlist " + pl + ": " + file.Key + ", Response: " + playlistResponse);
 
-						//and database
+						//add file to database
 						using (MySqlConnection conn = Secrets.GetConnectionString())
 						{
-							conn.Execute($"DELETE FROM files WHERE filename = '{a}'");
+							conn.Execute($"INSERT INTO files VALUES('{file.Key}', '{pl}');");
 						}
-						libmiroppb.Log("Deleted file " + a + " from database");
+						libmiroppb.Log("Added " + file.Key + " to the database");
+
+						groups.Where(x => x.name == pl).First().changed = true;
+
+						timerRefresh.Interval = 60 * 60 * 1000;
+					}
+					else
+					{
+						//file doesn't exist for some reason...
+						libmiroppb.Log("File doesn't exist. Will try to redownload next time...");
+						timerRefresh.Interval = 60 * 1000; //01.08.23 Try a minute later, not an hour later
 					}
 				}
-				//Deploy the group that was changed
-				foreach (ClGroups group in groups.Where(x => x.changed))
+			}
+			foreach (string a in db_files)
+			{
+				//else if db file exists but gd doesn't
+				if (!gd_files.ContainsKey(a))
 				{
-					await Wait(30);
+					//remove db file from pisignage
+					string files = SendRequest("/files/" + a, Method.Delete, null);
+					libmiroppb.Log("Deleted file: " + a + ", Response: " + files);
+
+					//and database
 					using (MySqlConnection conn = Secrets.GetConnectionString())
 					{
-						ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{group.name}'").FirstOrDefault();
-						ClDeployOptions deployOptions = null;
-						try
+						conn.Execute($"DELETE FROM files WHERE filename = '{a}'");
+					}
+					libmiroppb.Log("Deleted file " + a + " from database");
+				}
+			}
+			//Deploy the group that was changed
+			foreach (ClGroups group in groups.Where(x => x.changed))
+			{
+				await Wait(30);
+				using (MySqlConnection conn = Secrets.GetConnectionString())
+				{
+					ClFiles files = conn.Query<ClFiles>($"SELECT filename FROM files WHERE playlist = '{group.name}'").FirstOrDefault();
+					ClDeployOptions deployOptions = null;
+					try
+					{
+						deployOptions = new ClDeployOptions()
 						{
-							deployOptions = new ClDeployOptions()
+							assets = new string[]
 							{
-								assets = new string[]
-								{
-								files.filename,
-								"__" + groups.Where(x => x.name == group.name).First().name + ".json",
-								"custom_layout.html"
-								}
-							};
-							string groupResponse = SendRequest("/groups/" + group.hex, Method.Post, deployOptions);
-							libmiroppb.Log("Deployed " + group.name + ", Response: " + groupResponse);
-						}
-						catch (Exception ex)
-						{
-							libmiroppb.Log($"Deployed failed. Message: {ex.Message}, deployOptions: {files.filename}, __{groups.Where(x => x.name == group.name).First().name}.json, {group.hex}");
-						}
+							files.filename,
+							"__" + groups.Where(x => x.name == group.name).First().name + ".json",
+							"custom_layout.html"
+							}
+						};
+						string groupResponse = SendRequest("/groups/" + group.hex, Method.Post, deployOptions);
+						libmiroppb.Log("Deployed " + group.name + ", Response: " + groupResponse);
+					}
+					catch (Exception ex)
+					{
+						libmiroppb.Log($"Deployed failed. Message: {ex.Message}, deployOptions: {files.filename}, __{groups.Where(x => x.name == group.name).First().name}.json, {group.hex}");
 					}
 				}
-				groups.ForEach(x => x.changed = false);
 			}
+			groups.ForEach(x => x.changed = false);
 		}
 
 		private Dictionary<string, string> GetGoogleDriveFiles()
@@ -483,7 +481,7 @@ namespace PiSignageWatcher
 			return response.Content;
 		}
 
-		private string SendRequest(string url, RestSharp.Method method, object json, bool sendtoken = true)
+		private string SendRequest(string url, Method method, object json, bool sendtoken = true)
 		{
 			RestClient restClient = new(APIUrl);
 			RestRequest restRequest = null;
@@ -536,41 +534,38 @@ namespace PiSignageWatcher
 
 		private async void timerSchedule_Tick(object sender, EventArgs e)
 		{
-			if (await refreshToken())
+			//should be easy peasy right?
+			foreach (ClSchedule a in Action)
 			{
-				//should be easy peasy right?
-				foreach (ClSchedule a in Action)
+				if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOffTV)
 				{
-					if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOffTV)
+					libmiroppb.Log("Turning Off Tv: " + a.tv.name);
+					SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = true }); //true is off
+					await Wait();
+				}
+				else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOnTV)
+				{
+					if ((bool)CheckOnlineStatus(a.tv.name))
 					{
-						libmiroppb.Log("Turning Off Tv: " + a.tv.name);
-						SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = true }); //true is off
+						libmiroppb.Log("Turning On Tv: " + a.tv.name);
+						SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = false }); //false is on
 						await Wait();
 					}
-					else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.TurnOnTV)
-					{
-						if (CheckOnlineTVStatus(a.tv.hex).Result.Item1!.Value)
-						{
-							libmiroppb.Log("Turning On Tv: " + a.tv.name);
-							SendRequest("/pitv/" + a.tv.hex, Method.Post, new { status = false }); //false is on
-							await Wait();
-						}
-						else
-							await SendNotificationAsync($"TV {a.tv.name} is offline");
-					}
-					else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.Reboot)
-					{
-						if (CheckOnlineTVStatus(a.tv.hex).Result.Item1!.Value)
-						{
-							libmiroppb.Log("Rebooting TV: " + a.tv.name);
-							SendRequest("/pishell/" + a.tv.hex, Method.Post, new { cmd = "shutdown -r now" });
-							await Wait();
-						}
-						else
-							await SendNotificationAsync($"TV {a.tv.name} is offline");
-					}
-					
+					else
+						await SendNotificationAsync($"TV {a.tv.name} is offline");
 				}
+				else if (DateTime.Now.DayOfWeek == a.day && DateTime.Now.ToShortTimeString() == a.time.ToShortTimeString() && a.action == ScheduleActions.Reboot)
+				{
+					if ((bool)CheckOnlineStatus(a.tv.name))
+					{
+						libmiroppb.Log("Rebooting TV: " + a.tv.name);
+						SendRequest("/pishell/" + a.tv.hex, Method.Post, new { cmd = "shutdown -r now" });
+						await Wait();
+					}
+					else
+						await SendNotificationAsync($"TV {a.tv.name} is offline");
+				}
+
 			}
 		}
 
@@ -669,43 +664,36 @@ namespace PiSignageWatcher
 			var responseString = await response.Content.ReadAsStringAsync();
 		}
 
-		private async Task<(bool?, bool?)> CheckOnlineTVStatus(string hex)
+		private List<ClTVStatus> CheckOnlineTVStatus()
 		{
-			if (await refreshToken())
+			try
 			{
-				try
-				{
-					string json = SendRequest("/players", Method.Get, null);
-					Root_Player player = JsonConvert.DeserializeObject<Root_Player>(json);
-					Object obj = player.data.objects.FirstOrDefault(x => x._id == hex);
-					bool connected = obj.isConnected;
-					bool cec = obj.cecTvStatus;
-					return (connected, cec);
-				}
-				catch
-				{
-					return (null, null);
-				}
+				List<ClTVStatus> status = new List<ClTVStatus>();
+				string json = SendRequest("/players", Method.Get, null);
+				Root_Player player = JsonConvert.DeserializeObject<Root_Player>(json);
+				foreach (Object o in player.data.objects)
+					status.Add(new() { Name = o.name, Status = new() { IsOnline = o.isConnected, cecStatus = o.cecTvStatus } });
+
+				return status;
 			}
-			else
-				return (null, null);
+			catch
+			{
+				return null;
+			}
 		}
 
 		public bool? CheckOnlineStatus(string name)
 		{
 			string hex = tvs.Where(x => x.name == name).FirstOrDefault().hex;
 			if (hex == null)
-				return CheckOnlineTVStatus(hex).Result.Item1.Value;
+				return CheckOnlineTVStatus().Where(x => x.Name == name).FirstOrDefault().Status.IsOnline;
 			else
 				return null;
 		}
 
-		public Dictionary<string, (bool?, bool?)> CheckAllDevicesOnlineStatus()
+		public List<ClTVStatus> CheckAllDevicesOnlineStatus()
 		{
-			Dictionary<string, (bool?, bool?)> statuses = new Dictionary<string, (bool?, bool?)>();
-			foreach (ClTV tv in tvs)
-				statuses.Add(tv.name, CheckOnlineTVStatus(tv.hex).Result);
-			return statuses;
+			return CheckOnlineTVStatus();
 		}
 	}
 }

@@ -42,13 +42,7 @@ namespace PiSignageWatcher.Controllers
 					break;
 				case "status":
 					if (Program.frm != null)
-					{
-						Dictionary<string, (bool?, bool?)> status = Program.frm!.CheckAllDevicesOnlineStatus();
-						List<object> items = new List<object>();
-						foreach (var item in status)
-							items.Add(new { name = item.Key, isOnline = item.Value.Item1, CECStatus = item.Value.Item2 });
-						ret = items;
-					}
+						ret = Program.frm!.CheckAllDevicesOnlineStatus();
 					break;
 			}
 			return Ok(ret);

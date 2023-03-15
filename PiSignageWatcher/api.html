@@ -59,7 +59,7 @@
 		function RefreshStatus() {
 			$.getJSON("http://" + window.location.hostname + ":" + window.location.port + "/api/status", function (data) {
 				$.each(data, function (key, value) {
-					if (!value.isOnline) { $('.' + value.name).css("background-image", "radial-gradient(#454545, #808080)"); $('.' + value.name).prop("disabled", true); }
+					if (!value.status.isOnline) { $('.' + value.name).css("background-image", "radial-gradient(#454545, #808080)"); $('.' + value.name).prop("disabled", true); }
 					else { $('.' + value.name).prop("disabled", false); }
 				});
 			});

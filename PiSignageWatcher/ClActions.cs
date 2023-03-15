@@ -58,3 +58,15 @@ class ClDeployOptions
         return $"deploy: {deploy}, orientation: {orientation}, resolution: {resolution}, exportAssets: {exportAssets}, assets: {String.Join(", ", assets)}";
     }
 }
+
+public class ClTVStatus
+{
+    public string Name { get; set; }
+    public ClStatus Status { get; set; }
+}
+
+public class ClStatus
+{
+    public bool IsOnline { get; set; }
+    public bool cecStatus { get; set; }
+}
