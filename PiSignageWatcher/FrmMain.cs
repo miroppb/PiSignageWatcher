@@ -58,6 +58,8 @@ namespace PiSignageWatcher
 			};
 			timerRefreshToken.Tick += TimerRefreshToken_Tick;
 			TimerRefreshToken_Tick(null, null);
+			timerRefreshToken.Enabled = true;
+			timerRefreshToken.Start();
 
 #if !DEBUG
 			timerRefresh_Tick(null, null);
@@ -140,11 +142,11 @@ namespace PiSignageWatcher
 			}
 
 			Dictionary<string, string> data = new Dictionary<string, string>
-		{
-			{ "email", _settings.user },
-			{ "password", _settings.pass },
-			{ "getToken", "true" }
-		};
+			{
+				{ "email", _settings.user },
+				{ "password", _settings.pass },
+				{ "getToken", "true" }
+			};
 
 			string json = SendRequest("/session", Method.Post, data, false);
 			while (json == null)
@@ -526,7 +528,12 @@ namespace PiSignageWatcher
 
 			using (MySqlConnection conn = Secrets.GetConnectionString())
 			{
-				List<ClSchedule> _schedule = conn.Query<ClSchedule>("SELECT tv, day, time, action FROM schedule").ToList();
+				List<ClSchedule> _schedule = conn.Query<ClSchedule, ClTV, ClSchedule>
+					("SELECT s.day, s.time, s.action, tv.* FROM schedule AS s INNER JOIN tvs AS tv ON tv.name = s.tv", (s, t) =>
+					{
+						s.tv = t;
+						return s;
+					}, splitOn: "name").ToList();
 				libmiroppb.Log("Using following schedule:");
 				foreach (ClSchedule schedule in _schedule)
 				{

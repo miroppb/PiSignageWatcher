@@ -29,13 +29,21 @@ namespace PiSignageWatcher
 
 			List<ClSchedule> clSchedules = null;
 			using (MySqlConnection conn = Secrets.GetConnectionString())
-				clSchedules = conn.Query<ClSchedule>("SELECT id, tv, day, time, action FROM schedule ORDER BY id").ToList();
+			{
+				clSchedules = conn.Query<ClSchedule, ClTV, ClSchedule>
+					("SELECT s.day, s.time, s.action, tv.* FROM schedule AS s INNER JOIN tvs AS tv ON tv.name = s.tv", (s, t) =>
+					{
+						s.tv = t;
+						return s;
+					}, splitOn: "name").ToList();
+			}
+				
 
 			for (int c = 0; c < clSchedules.Count; c++)
 			{
 				ActionIDs.Add(clSchedules[c].id);
 				DgvSchedule.Rows.Add();
-				try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[0]).Value = clSchedules[c].tv; } catch { }
+				try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[0]).Value = clSchedules[c].tv.name; } catch { }
 				try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[1]).Value = DoW[Convert.ToInt16(clSchedules[c].day)]; } catch { }
 				DgvSchedule.Rows[c].Cells[2].Value = clSchedules[c].time.ToString();
 				try { ((DataGridViewComboBoxCell)DgvSchedule.Rows[c].Cells[3]).Value = ValidActions[Convert.ToInt16(clSchedules[c].action)]; } catch { }
