@@ -34,11 +34,19 @@ namespace PiSignageWatcher.Controllers
 					ret = lst.TakeLast(50).ToList();
 					break;
 				case "checknow":
-					Program.frm.timerRefresh_Tick(null, null);
+					Program.frm.RefreshFiles();
 					break;
 				case "getdevices":
-					using (MySqlConnection conn = Secrets.GetConnectionString())
-						ret = conn.Query<ClGroups>("SELECT name FROM groups").ToList();
+					if (Program.frm != null)
+					{
+						Program.frm.PopulateData();
+						List<object> temp = new();
+						foreach (ClPlayer p in Program.frm.Players)
+						{
+							temp.Add(new { p.name });
+						}
+						ret = temp;
+					}
 					break;
 				case "status":
 					if (Program.frm != null)
@@ -55,11 +63,11 @@ namespace PiSignageWatcher.Controllers
 			switch (_action)
 			{
 				case "redeploy":
-					using (MySqlConnection conn = Secrets.GetConnectionString())
+					if (Program.frm != null)
 					{
-						if (conn.Query<ClGroups>("SELECT * FROM groups WHERE name = @device", new DynamicParameters(new { device })).FirstOrDefault() != null)
+						if (Program.frm.Players.Any(x => x.name.StartsWith(device)))
 						{
-							Program.frm.reDeployGroup(device);
+							Program.frm.DeployPlaylistToGroup(device, device);
 							ret = new { message = $"Redeploy of {device} Successful" };
 						}
 						else
@@ -83,16 +91,13 @@ namespace PiSignageWatcher.Controllers
 					}
 					break;
 				case "reboot":
-					using (MySqlConnection conn = Secrets.GetConnectionString())
+					if (Program.frm.Players.FirstOrDefault(x => x.name == device) != null)
 					{
-						if (conn.Query<ClGroups>("SELECT * FROM groups WHERE name = @device", new DynamicParameters(new { device })).FirstOrDefault() != null)
-						{
-							Program.frm.rebootGroup(device);
-							ret = new { message = $"Reboot of {device} Successful" };
-						}
-						else
-							ret = new { message = $"Device Name: {device} doesn't exist" };
+						Program.frm.RebootPlayer(device);
+						ret = new { message = $"Reboot of {device} Successful" };
 					}
+					else
+						ret = new { message = $"Device Name: {device} doesn't exist" };
 					break;
 			}
 			return Ok(ret);
@@ -105,7 +110,7 @@ namespace PiSignageWatcher.Controllers
 	public class RootController : ControllerBase
 	{
 		[HttpGet]
-		public IEnumerable<string> Get()
+		public static IEnumerable<string> Get()
 		{
 			return new string[] { "Scary music comes from PiSignage" };
 		}

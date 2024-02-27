@@ -1,14 +1,17 @@
-﻿using System;
+﻿using Dapper.Contrib.Extensions;
+using PiSignageWatcher.JSON;
+using System;
 
-public enum ScheduleActions { TurnOffTV, TurnOnTV, Reboot };
+public enum ScheduleActions { TurnOffTV, TurnOnTV, Reboot, DeployPlaylist };
 
 class ClSettings
 {
-	public string user { get; set; }
+    public int id { get; set; }
+    public string user { get; set; }
 	public string pass { get; set; }
 	public string api { get; set; }
-	public string gdrive { get; set; }
 	public string prowl { get; set; }
+    public string path { get; set; }
 }
 
 class ClFiles
@@ -17,29 +20,20 @@ class ClFiles
 	public string playlist { get; set; }
 }
 
-class ClGroups
-{
-	public string name { get; set; }
-	public string hex { get; set; }
-	public bool changed { get; set; } = false;
-}
-
-class ClPlaylists
-{
-	public string search { get; set; }
-	public string name { get; set; }
-}
-
+[Table("schedule")]
 class ClSchedule
 {
 	public int id { get; set; }
-	public ClTV tv { get; set; }
-	public DayOfWeek day { get; set; }
-	public DateTime time { get; set; }
-	public ScheduleActions action { get; set; }
+	public string name { get; set; }
+	[Computed]
+	public ClPlayer player { get; set; }
+	public string day { get; set; }
+	public string time { get; set; }
+	public string action { get; set; }
+	public string subaction { get; set; }
 }
 
-class ClTV
+public class ClPlayer
 {
 	public string name { get; set; }
 	public string hex { get; set; }
