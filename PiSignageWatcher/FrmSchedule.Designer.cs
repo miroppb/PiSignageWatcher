@@ -33,12 +33,12 @@
 			BtnRemove = new System.Windows.Forms.Button();
 			BtnAdd = new System.Windows.Forms.Button();
 			DgvSchedule = new System.Windows.Forms.DataGridView();
-			BtnSave = new System.Windows.Forms.Button();
 			PlayerColumn = new System.Windows.Forms.DataGridViewComboBoxColumn();
 			DayColumn = new System.Windows.Forms.DataGridViewComboBoxColumn();
 			TimeColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
 			ActionColumn = new System.Windows.Forms.DataGridViewComboBoxColumn();
 			SubActionColumn = new System.Windows.Forms.DataGridViewComboBoxColumn();
+			BtnSave = new System.Windows.Forms.Button();
 			groupBox2.SuspendLayout();
 			((System.ComponentModel.ISupportInitialize)DgvSchedule).BeginInit();
 			SuspendLayout();
@@ -92,11 +92,53 @@
 			DgvSchedule.Location = new System.Drawing.Point(4, 18);
 			DgvSchedule.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
 			DgvSchedule.Name = "DgvSchedule";
-			DgvSchedule.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.CellSelect;
+			DgvSchedule.RowHeadersWidth = 51;
+			DgvSchedule.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
 			DgvSchedule.Size = new System.Drawing.Size(556, 182);
 			DgvSchedule.TabIndex = 15;
 			DgvSchedule.CellDoubleClick += DgvSchedule_CellDoubleClick;
 			DgvSchedule.CellValueChanged += DgvSchedule_CellValueChanged;
+			// 
+			// PlayerColumn
+			// 
+			PlayerColumn.DataPropertyName = "player";
+			PlayerColumn.HeaderText = "Player";
+			PlayerColumn.MinimumWidth = 6;
+			PlayerColumn.Name = "PlayerColumn";
+			PlayerColumn.Width = 125;
+			// 
+			// DayColumn
+			// 
+			DayColumn.DataPropertyName = "day";
+			DayColumn.HeaderText = "Day";
+			DayColumn.MinimumWidth = 6;
+			DayColumn.Name = "DayColumn";
+			DayColumn.Resizable = System.Windows.Forms.DataGridViewTriState.True;
+			DayColumn.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Automatic;
+			// 
+			// TimeColumn
+			// 
+			TimeColumn.DataPropertyName = "time";
+			dataGridViewCellStyle1.Format = "HH:mm tt";
+			TimeColumn.DefaultCellStyle = dataGridViewCellStyle1;
+			TimeColumn.HeaderText = "Time";
+			TimeColumn.MinimumWidth = 6;
+			TimeColumn.Name = "TimeColumn";
+			TimeColumn.Width = 75;
+			// 
+			// ActionColumn
+			// 
+			ActionColumn.DataPropertyName = "action";
+			ActionColumn.HeaderText = "Action";
+			ActionColumn.MinimumWidth = 6;
+			ActionColumn.Name = "ActionColumn";
+			// 
+			// SubActionColumn
+			// 
+			SubActionColumn.HeaderText = "SubAction";
+			SubActionColumn.MinimumWidth = 6;
+			SubActionColumn.Name = "SubActionColumn";
+			SubActionColumn.Width = 125;
 			// 
 			// BtnSave
 			// 
@@ -111,39 +153,6 @@
 			BtnSave.UseVisualStyleBackColor = true;
 			BtnSave.Click += BtnSave_Click;
 			// 
-			// PlayerColumn
-			// 
-			PlayerColumn.DataPropertyName = "player";
-			PlayerColumn.HeaderText = "Player";
-			PlayerColumn.Name = "PlayerColumn";
-			// 
-			// DayColumn
-			// 
-			DayColumn.DataPropertyName = "day";
-			DayColumn.HeaderText = "Day";
-			DayColumn.Name = "DayColumn";
-			DayColumn.Resizable = System.Windows.Forms.DataGridViewTriState.True;
-			DayColumn.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Automatic;
-			// 
-			// TimeColumn
-			// 
-			TimeColumn.DataPropertyName = "time";
-			dataGridViewCellStyle1.Format = "HH:mm tt";
-			TimeColumn.DefaultCellStyle = dataGridViewCellStyle1;
-			TimeColumn.HeaderText = "Time";
-			TimeColumn.Name = "TimeColumn";
-			// 
-			// ActionColumn
-			// 
-			ActionColumn.DataPropertyName = "action";
-			ActionColumn.HeaderText = "Action";
-			ActionColumn.Name = "ActionColumn";
-			// 
-			// SubActionColumn
-			// 
-			SubActionColumn.HeaderText = "SubAction";
-			SubActionColumn.Name = "SubActionColumn";
-			// 
 			// FrmSchedule
 			// 
 			AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -154,7 +163,7 @@
 			Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
 			MaximizeBox = false;
 			MinimizeBox = false;
-			MinimumSize = new System.Drawing.Size(626, 312);
+			MinimumSize = new System.Drawing.Size(626, 310);
 			Name = "FrmSchedule";
 			ShowIcon = false;
 			ShowInTaskbar = false;

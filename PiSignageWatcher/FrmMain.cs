@@ -2,6 +2,8 @@
 using miroppb;
 using MySqlConnector;
 using Newtonsoft.Json;
+using OtpNet;
+using PiSignageWatcher.JSON;
 using RestSharp;
 using System;
 using System.Collections.Generic;
@@ -17,13 +19,15 @@ namespace PiSignageWatcher
 {
 	public partial class FrmMain : Form
 	{
-		ClSettings Settings = new();
+		private ClSettings Settings = new();
 		protected string token = "";
-		private List<JSON.Pi_Groups.Datum> Groups = new();
-		private List<ClSchedule> Schedules = new();
+		private List<Pi_Groups.Datum> Groups = new();
+		private readonly List<ClSchedule> Schedules = new();
 		public List<ClPlayer> Players = new();
+		private List<Layouts> AllLayouts = new();
+		private List<string> DBFiles = new();
 
-		public List<JSON.Pi_Playlists.Datum> AllPlaylists = new();
+		public List<Pi_Playlists.Datum> AllPlaylists = new();
 
 		ToolStripMenuItem RedeployMI;
 		ToolStripMenuItem RebootMI;
@@ -66,7 +70,7 @@ namespace PiSignageWatcher
 			timerUploadLogs.Elapsed += delegate
 			{
 				libmiroppb.Log("Uploading logs");
-				libmiroppb.UploadLog(Secrets.GetConnectionString().ConnectionString, "logs", true);
+				libmiroppb.UploadLog(Secrets.GetConnectionString().ConnectionString, true);
 			};
 			timerUploadLogs.Start();
 			libmiroppb.Log("Upload logs timer started");
@@ -86,7 +90,11 @@ namespace PiSignageWatcher
 			libmiroppb.Log("Refresh Data timer started");
 
 #if DEBUG
-			//RefreshFiles();
+			//if (Environment.GetCommandLineArgs().Length == 2)
+			//{
+			//	RefreshFiles(Environment.GetCommandLineArgs()[1]);
+			//}
+			RefreshFiles();
 #endif
 		}
 
@@ -137,11 +145,16 @@ namespace PiSignageWatcher
 
 		private async Task<bool> RefreshToken([CallerMemberName] string sender = null)
 		{
+			var secretKey = Base32Encoding.ToBytes(Settings.Otp);
+			var totp = new Totp(secretKey);
+			var otp = totp.ComputeTotp();
+
 			Dictionary<string, string> data = new()
 			{
-				{ "email", Settings.user },
-				{ "password", Settings.pass },
-				{ "getToken", "true" }
+				{ "email", Settings.User },
+				{ "password", Settings.Pass },
+				{ "getToken", "true" },
+				{ "code", otp }
 			};
 
 			string json = SendRequest("/session", Method.Post, data, false);
@@ -165,10 +178,10 @@ namespace PiSignageWatcher
 					t = JsonConvert.DeserializeObject<Root_Session>(json);
 				}
 				token = t.token;
-				//libmiroppb.Log($"Called from {sender}. Refreshed token: {token}");
+				libmiroppb.Log($"Called from {sender}. Refreshed token: {token}");
 				return true;
 			}
-			catch (Exception ex)
+			catch
 			{
 				//libmiroppb.Log($"Called from {sender}. Refreshed not refreshed. Something failed: {ex.Message}");
 				return false;
@@ -178,7 +191,7 @@ namespace PiSignageWatcher
 		private void GetSettings()
 		{
 			using MySqlConnection conn = Secrets.GetConnectionString();
-			Settings = conn.Query<ClSettings>("SELECT user, pass, api, prowl, path FROM settings").FirstOrDefault();
+			Settings = conn.Query<ClSettings>("SELECT user, pass, api, prowl, path, otp FROM settings").FirstOrDefault();
 		}
 
 		private void RefreshPlayers()
@@ -186,14 +199,14 @@ namespace PiSignageWatcher
 			string json = SendRequest("/players", Method.Get, null);
 			Root_Player rp = JsonConvert.DeserializeObject<Root_Player>(json);
 			Players.Clear();
-			Players.AddRange(rp.data.objects.Select(o => new ClPlayer() { name = o.name, hex = o._id }));
+			Players.AddRange(rp.data.objects.Select(o => new ClPlayer() { Name = o.name, Hex = o._id }));
 
 			if (Players.Count > 0)
 			{
 				RebootMI.DropDownItems.Clear();
 				foreach (ClPlayer p in Players)
 				{
-					RebootMI.DropDownItems.Add(p.name, null, RebootPlayer);
+					RebootMI.DropDownItems.Add(p.Name, null, RebootPlayer);
 				}
 			}
 		}
@@ -201,12 +214,12 @@ namespace PiSignageWatcher
 		private void RefreshGroups()
 		{
 			string json = SendRequest("/groups", Method.Get, null);
-			Groups = JsonConvert.DeserializeObject<JSON.Pi_Groups.Root>(json).data;
+			Groups = JsonConvert.DeserializeObject<Pi_Groups.Root>(json).data;
 
 			if (Groups.Count > 0)
 			{
 				RedeployMI.DropDownItems.Clear();
-				foreach (JSON.Pi_Groups.Datum group in Groups)
+				foreach (Pi_Groups.Datum group in Groups)
 				{
 					RedeployMI.DropDownItems.Add(group.name, null, ReDeployGroup);
 				}
@@ -215,13 +228,13 @@ namespace PiSignageWatcher
 
 		private void RefreshPlaylists()
 		{
-			AllPlaylists = JsonConvert.DeserializeObject<JSON.Pi_Playlists.Root>(SendRequest("/playlists", Method.Get, null)).data;
+			AllPlaylists = JsonConvert.DeserializeObject<Pi_Playlists.Root>(SendRequest("/playlists", Method.Get, null)).data;
 
-			List<JSON.Pi_Playlists.Datum> PlaylistsWithAssets = AllPlaylists.Where(x => x.assets.Count > 0).ToList();
+			List<Pi_Playlists.Datum> PlaylistsWithAssets = AllPlaylists.Where(x => x.assets.Count > 0).ToList();
 			if (PlaylistsWithAssets.Count > 0)
 				DeployMI.DropDownItems.Clear();
 
-			foreach (JSON.Pi_Playlists.Datum i in PlaylistsWithAssets)
+			foreach (Pi_Playlists.Datum i in PlaylistsWithAssets)
 			{
 				DeployMI.DropDownItems.Add(i.name);
 			}
@@ -232,12 +245,19 @@ namespace PiSignageWatcher
 					ToolStripMenuItem toolStripMenuItem = new()
 					{
 						Tag = DeployMI.DropDownItems[a].Text,
-						Text = tv.name
+						Text = tv.Name
 					};
 					toolStripMenuItem.Click += DeployPlaylistToTV;
 					(DeployMI.DropDownItems[a] as ToolStripMenuItem).DropDownItems.Add(toolStripMenuItem);
 				}
 			}
+		}
+
+		void RefreshLayouts()
+		{
+			using MySqlConnection conn = Secrets.GetConnectionString();
+			var temp = conn.Query<Layouts>("SELECT * FROM layouts");
+			AllLayouts = temp.ToList();
 		}
 
 		private void RefreshSchedules()
@@ -250,41 +270,49 @@ namespace PiSignageWatcher
 			libmiroppb.Log("Using following schedule:");
 			foreach (ClSchedule schedule in _schedule)
 			{
-				schedule.player = Players.FirstOrDefault(x => x.name == schedule.name);
+				schedule.Player = Players.FirstOrDefault(x => x.Name == schedule.Name);
 				Schedules.Add(schedule);
-				libmiroppb.Log($"[{schedule.player.name}, {schedule.day}, {schedule.time}, {schedule.action}]");
+				libmiroppb.Log($"[{schedule.Player.Name}, {schedule.Day}, {schedule.Time}, {schedule.Action}]");
 			}
 		}
 
-		public async void RefreshFiles()
+		private void RefreshListOfFiles()
 		{
+			string json = SendRequest("/files", Method.Get, null);
+			DBFiles = JsonConvert.DeserializeObject<Pi_Files.Root>(json).Data.Dbdata.Where(x => x.Type == "video").Select(x => x.Name).ToList();
+		}
+
+		public async void RefreshFiles(string path = "")
+		{
+			if (path == "") { path = Settings.Path; }
+			Directory.SetCurrentDirectory(AppContext.BaseDirectory); //06.06.24 Because the application can be started from scheduler
+
 			libmiroppb.Log("Checking for updates to video files");
-			List<string> video_files = GetListOfFiles(Settings.path);
+#if DEBUG
+			List<string> video_files = new() { "TEST FILE.mp4" };
+#else
+			List<string> video_files = GetListOfFiles(path);
+#endif
 			foreach (string file in video_files) { libmiroppb.Log(file); }
 
-			List<ClFiles> _files = null;
-			using (MySqlConnection conn = Secrets.GetConnectionString())
-			{
-				libmiroppb.Log("Getting list of database files...");
-				_files = conn.Query<ClFiles>("SELECT * FROM files").ToList();
-			}
+			libmiroppb.Log("Getting list of assets...");
+			RefreshListOfFiles();
 
-			List<string> db_files = new();
-			foreach (ClFiles file in _files) { db_files.Add(file.filename); libmiroppb.Log(file.filename); }
+			foreach (string i in DBFiles) { libmiroppb.Log(i); }
 
 			//compare the db files with gd files
 			foreach (string file in video_files)
 			{
 				string CurrentPlaylist = file.Split(' ')[0];
 				//for each file that doesn't exist already (new file) and starts with a playlist "search" term
-				if (!db_files.Contains(file) && AllPlaylists.Any(x => x.name == CurrentPlaylist))
+				if (!DBFiles.Contains(file) && AllPlaylists.Any(x => x.name == CurrentPlaylist))
 				{
 					libmiroppb.Log("Working on: " + file);
 					_ = SendNotificationAsync("Working on " + file);
 
 					//copy file to current dir
-					File.Copy(Path.Combine(Settings.path, file), file, true);
-
+					File.Copy(Path.Combine(path, file), file.ReplaceInvalidChars(), true);
+					await Task.Delay(3000);
 					if (File.Exists(file))
 					{
 						//remove commas
@@ -300,11 +328,23 @@ namespace PiSignageWatcher
 
 						await Task.Delay(1000);
 
-						//we'll have only 1 file per TV, for now
-						Root_Files rf = GetInfoAboutFileonPiSignage(file);
-
-						//error (rf null). See the best way to resolve this
-						//add current file to playlist
+						Root_Files rf = null;
+						int attempt = 0;
+						while (attempt < 5)
+						{
+							if (rf == null || rf.data.dbdata == null)
+							{
+								await Task.Delay(1000);
+								rf = GetInfoAboutFileonPiSignage(file);
+							}
+							attempt += 1;
+						}
+						if (rf == null || rf.data.dbdata == null)
+						{
+							libmiroppb.Log("Not proccessing file... Probably 4K");
+							await SendNotificationAsync("Not proccessing file... Probably 4K");
+							break;
+						}
 						
 						//we're using the first WORD to determine which playlist the file goes to
 						//this file will effectively replace the current file in the playlist, keeping all zones same
@@ -324,12 +364,12 @@ namespace PiSignageWatcher
 					else
 					{
 						//file doesn't exist for some reason...
-						libmiroppb.Log("File doesn't exist. Will try to redownload next time...");
+						libmiroppb.Log($"{file} doesn't exist. Will try to redownload next time...");
 						timerRefreshFiles.Interval = 60 * 1000; //01.08.23 Try a minute later, not an hour later
 					}
 				}
 			}
-			foreach (string a in db_files)
+			foreach (string a in DBFiles)
 			{
 				//else if db file exists but gd doesn't
 				if (!video_files.Contains(a))
@@ -356,9 +396,12 @@ namespace PiSignageWatcher
 		private void AddFileToPlaylistonPiSignage(string pl, string file, int duration)
 		{
 			RefreshPlaylists();
+			RefreshLayouts();
+
+			Layouts CurrentLayout = AllLayouts.FirstOrDefault(x => x.Playlist == pl);
 
 			//get current playlist
-			JSON.Pi_Playlists.Datum Selected = AllPlaylists.First(x => x.name == pl);
+			Pi_Playlists.Datum Selected = AllPlaylists.First(x => x.name == pl);
 			//All we're doing is replacing the filename, and keeping the other zones same
 			Asset_Files af = new()
 			{
@@ -409,7 +452,7 @@ namespace PiSignageWatcher
 
 		private string Upload(string url, string filename)
 		{
-			RestClient restClient = new(Settings.api);
+			RestClient restClient = new(Settings.Api);
 			RestRequest restRequest = new(url + "?token=" + token)
 			{
 				RequestFormat = DataFormat.Json,
@@ -423,7 +466,7 @@ namespace PiSignageWatcher
 
 		private string SendRequest(string url, Method method, object json, bool sendtoken = true)
 		{
-			RestClient restClient = new(Settings.api);
+			RestClient restClient = new(Settings.Api);
 			RestRequest restRequest = null;
 			if (sendtoken)
 				restRequest = new RestRequest(url + "?token=" + token);
@@ -451,8 +494,9 @@ namespace PiSignageWatcher
 		{
 			FrmSchedule frm = new()
 			{
-				ValidPlayers = Players.Select(x => x.name).ToList(),
-				ValidActions = GetEnumList<ScheduleActions>()
+				ValidPlayers = Players.Select(x => x.Name).ToList(),
+				ValidActions = GetEnumList<ScheduleActions>(),
+				ValidPlaylists = AllPlaylists.Select(x => x.name).ToList()
 			};
 			frm.ShowDialog(this);
 
@@ -464,47 +508,47 @@ namespace PiSignageWatcher
 			//should be easy peasy right?
 			foreach (ClSchedule a in Schedules)
 			{
-				if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.day) && DateTime.Now.ToShortTimeString() == a.time && Enum.Parse<ScheduleActions>(a.action) == ScheduleActions.TurnOffTV)
+				if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.Day) && DateTime.Now.ToShortTimeString() == a.Time && Enum.Parse<ScheduleActions>(a.Action) == ScheduleActions.TurnOffTV)
 				{
-					libmiroppb.Log($"Turning off TV {a.player.name}");
-					await SendNotificationAsync($"Turning off TV {a.player.name}");
-					SendRequest("/pitv/" + a.player.hex, Method.Post, new { status = true }); //true is off
+					libmiroppb.Log($"Turning off TV {a.Player.Name}");
+					await SendNotificationAsync($"Turning off TV {a.Player.Name}");
+					SendRequest("/pitv/" + a.Player.Hex, Method.Post, new { status = true }); //true is off
 					await Wait();
 				}
-				else if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.day) && DateTime.Now.ToShortTimeString() == a.time && Enum.Parse<ScheduleActions>(a.action) == ScheduleActions.TurnOnTV)
+				else if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.Day) && DateTime.Now.ToShortTimeString() == a.Time && Enum.Parse<ScheduleActions>(a.Action) == ScheduleActions.TurnOnTV)
 				{
-					bool? t = CheckOnlineStatus(a.player.name);
+					bool? t = CheckOnlineStatus(a.Player.Name);
 					if (t != null && t.Value)
 					{
-						libmiroppb.Log($"Turning On TV {a.player.name}");
-						await SendNotificationAsync($"Turning On TV {a.player.name}");
-						SendRequest("/pitv/" + a.player.hex, Method.Post, new { status = false }); //false is on
+						libmiroppb.Log($"Turning On TV {a.Player.Name}");
+						await SendNotificationAsync($"Turning On TV {a.Player.Name}");
+						SendRequest("/pitv/" + a.Player.Hex, Method.Post, new { status = false }); //false is on
 						await Wait();
 					}
 					else
-						await SendNotificationAsync($"TV {a.player.name} is offline");
+						await SendNotificationAsync($"TV {a.Player.Name} is offline");
 				}
-				else if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.day) && DateTime.Now.ToShortTimeString() == a.time && Enum.Parse<ScheduleActions>(a.action) == ScheduleActions.Reboot)
+				else if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.Day) && DateTime.Now.ToShortTimeString() == a.Time && Enum.Parse<ScheduleActions>(a.Action) == ScheduleActions.Reboot)
 				{
-					bool? t = CheckOnlineStatus(a.player.name);
+					bool? t = CheckOnlineStatus(a.Player.Name);
 					if (t != null && t.Value)
 					{
-						libmiroppb.Log($"Rebooting TV {a.player.name}");
-						await SendNotificationAsync($"Rebooting TV {a.player.name}");
-						SendRequest("/pishell/" + a.player.hex, Method.Post, new { cmd = "shutdown -r now" });
+						libmiroppb.Log($"Rebooting TV {a.Player.Name}");
+						await SendNotificationAsync($"Rebooting TV {a.Player.Name}");
+						SendRequest("/pishell/" + a.Player.Hex, Method.Post, new { cmd = "shutdown -r now" });
 						await Wait();
 					}
 					else
-						await SendNotificationAsync($"TV {a.player.name} is offline");
+						await SendNotificationAsync($"TV {a.Player.Name} is offline");
 				}
-				else if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.day) && DateTime.Now.ToShortTimeString() == a.time && Enum.Parse<ScheduleActions>(a.action) == ScheduleActions.DeployPlaylist)
+				else if (DateTime.Now.DayOfWeek == Enum.Parse<DayOfWeek>(a.Day) && DateTime.Now.ToShortTimeString() == a.Time && Enum.Parse<ScheduleActions>(a.Action) == ScheduleActions.DeployPlaylist)
 				{
-					bool? t = CheckOnlineStatus(a.player.name);
-					if (t != null && t.Value)
+					bool? t = CheckOnlineStatus(a.Player.Name);
+					if (t != null && t.Value && AllPlaylists.Any(x => x.name == a.Subaction))
 					{
-						libmiroppb.Log($"Deploying: {a.subaction} to {a.name}");
-						await SendNotificationAsync($"Deploying: {a.subaction} to {a.name}");
-						DeployPlaylistToGroup(a.subaction, a.name);
+						libmiroppb.Log($"Deploying: {a.Subaction} to {a.Name}");
+						await SendNotificationAsync($"Deploying: {a.Subaction} to {a.Name}");
+						DeployPlaylistToGroup(a.Subaction, a.Name);
 						await Wait();
 					}
 				}
@@ -523,8 +567,8 @@ namespace PiSignageWatcher
 
 			foreach (ClPlayer p in Players)
 			{
-				frm.DgvPlayers.Rows.Add(p.name, p.hex);
-				libmiroppb.Log("Showing player name: " + p.name + ", id:" + p.hex);
+				frm.DgvPlayers.Rows.Add(p.Name, p.Hex);
+				libmiroppb.Log("Showing player name: " + p.Name + ", id:" + p.Hex);
 			}
 			frm.ShowDialog();
 		}
@@ -535,8 +579,8 @@ namespace PiSignageWatcher
 			foreach (ClPlayer tv in Players)
 			{
 				await Wait();
-				libmiroppb.Log("Turning On Tv: " + tv.name);
-				SendRequest("/pitv/" + tv.hex, Method.Post, new { status = false }); //false is on
+				libmiroppb.Log("Turning On Tv: " + tv.Name);
+				SendRequest("/pitv/" + tv.Hex, Method.Post, new { status = false }); //false is on
 			}
 		}
 
@@ -546,8 +590,8 @@ namespace PiSignageWatcher
 			foreach (ClPlayer tv in Players)
 			{
 				await Wait();
-				libmiroppb.Log("Turning Off Tv: " + tv.name);
-				SendRequest("/pitv/" + tv.hex, Method.Post, new { status = true }); //false is on
+				libmiroppb.Log("Turning Off Tv: " + tv.Name);
+				SendRequest("/pitv/" + tv.Hex, Method.Post, new { status = true }); //false is on
 			}
 		}
 
@@ -570,18 +614,18 @@ namespace PiSignageWatcher
 			RefreshPlaylists();
 
 			//get assets in playlist and put into cldeployoptions
-			JSON.Pi_Playlists.Datum SelectedPlaylist = AllPlaylists.First(x => x.name == p);
-			List<JSON.Pi_Playlists.Asset> assets = SelectedPlaylist.assets;
+			Pi_Playlists.Datum SelectedPlaylist = AllPlaylists.First(x => x.name == p);
+			List<Pi_Playlists.Asset> assets = SelectedPlaylist.assets;
 			List<string> col = new();
-			foreach (JSON.Pi_Playlists.Asset a in assets)
+			foreach (Pi_Playlists.Asset a in assets)
 			{
 				col.AddRange(new string[] { a.filename, a.bottom, a.side, a.zone4, a.zone5 });
 			}
 			col.AddRange(new string[] { SelectedPlaylist.templateName, $"__{SelectedPlaylist.name}.json" });
 			ClDeployOptions options = new()
 			{
-				assets = col.ToArray(),
-				deploy = true
+				Assets = col.ToArray(),
+				Deploy = true
 			};
 
 			string group = SendRequest("/groups/" + Groups.Where(x => x.name == g).First()._id, Method.Post, options);
@@ -596,8 +640,8 @@ namespace PiSignageWatcher
 
 		public void RebootPlayer(string groupName)
 		{
-			libmiroppb.Log("Rebooting TV: " + Players.Where(x => x.name == groupName).First().name);
-			SendRequest("/pishell/" + Players.Where(x => x.name == groupName).First().hex, Method.Post, new { cmd = "shutdown -r now" });
+			libmiroppb.Log("Rebooting TV: " + Players.Where(x => x.Name == groupName).First().Name);
+			SendRequest("/pishell/" + Players.Where(x => x.Name == groupName).First().Hex, Method.Post, new { cmd = "shutdown -r now" });
 		}
 
 		private void FindMenuItems()
@@ -626,7 +670,7 @@ namespace PiSignageWatcher
 		{
 			var values = new Dictionary<string, string>
 			{
-				{ "apikey", Settings.prowl },
+				{ "apikey", Settings.Prowl },
 				{ "application", "PiSiagnage Watcher" },
 				{ "description", text },
 			};
@@ -645,7 +689,7 @@ namespace PiSignageWatcher
 				string json = SendRequest("/players", Method.Get, null);
 				Root_Player player = JsonConvert.DeserializeObject<Root_Player>(json);
 				foreach (Object o in player.data.objects)
-					status.Add(new() { Name = o.name, Status = new() { IsOnline = o.isConnected, cecStatus = o.cecTvStatus } });
+					status.Add(new() { Name = o.name, Status = new() { IsOnline = o.isConnected, CecStatus = o.cecTvStatus } });
 
 				return status;
 			}
@@ -657,7 +701,7 @@ namespace PiSignageWatcher
 
 		public bool? CheckOnlineStatus(string name)
 		{
-			string hex = Players.Where(x => x.name == name).FirstOrDefault().hex;
+			string hex = Players.Where(x => x.Name == name).FirstOrDefault().Hex;
 			if (hex != null)
 				return CheckOnlineTVStatus().Where(x => x.Name == name).FirstOrDefault().Status.IsOnline;
 			else

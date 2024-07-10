@@ -73,9 +73,9 @@ namespace PiSignageWatcher
 			using MySqlConnection conn = Secrets.GetConnectionString();
 			ClSchedule newSchedule = new()
 			{
-				name = ValidPlayers.FirstOrDefault()
+				Name = ValidPlayers.FirstOrDefault()
 			};
-			newSchedule.id = (int)conn.Insert(newSchedule);
+			newSchedule.Id = (int)conn.Insert(newSchedule);
 			Schedules.Add(newSchedule);
 		}
 
@@ -97,11 +97,11 @@ namespace PiSignageWatcher
 				var currentSchedule = DgvSchedule.Rows[e.RowIndex].DataBoundItem as ClSchedule;
 
 				if (e.ColumnIndex == 0)
-					currentSchedule.name = DgvSchedule.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
+					currentSchedule.Name = DgvSchedule.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
 				else if (e.ColumnIndex == 1)
-					currentSchedule.day = DgvSchedule.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
+					currentSchedule.Day = DgvSchedule.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
 				else if (e.ColumnIndex == 3)
-					currentSchedule.action = DgvSchedule.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString().Replace(" ", "");
+					currentSchedule.Action = DgvSchedule.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString().Replace(" ", "");
 
 				using MySqlConnection conn = Secrets.GetConnectionString();
 				conn.Update(currentSchedule);

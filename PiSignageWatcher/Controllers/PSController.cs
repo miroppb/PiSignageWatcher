@@ -1,7 +1,5 @@
-﻿using Dapper;
-using Microsoft.AspNetCore.Cors;
+﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using MySqlConnector;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -43,7 +41,7 @@ namespace PiSignageWatcher.Controllers
 						List<object> temp = new();
 						foreach (ClPlayer p in Program.frm.Players)
 						{
-							temp.Add(new { p.name });
+							temp.Add(new { p.Name });
 						}
 						ret = temp;
 					}
@@ -65,7 +63,7 @@ namespace PiSignageWatcher.Controllers
 				case "redeploy":
 					if (Program.frm != null)
 					{
-						if (Program.frm.Players.Any(x => x.name.StartsWith(device)))
+						if (Program.frm.Players.Any(x => x.Name.StartsWith(device)))
 						{
 							Program.frm.DeployPlaylistToGroup(device, device);
 							ret = new { message = $"Redeploy of {device} Successful" };
@@ -91,7 +89,7 @@ namespace PiSignageWatcher.Controllers
 					}
 					break;
 				case "reboot":
-					if (Program.frm.Players.FirstOrDefault(x => x.name == device) != null)
+					if (Program.frm.Players.FirstOrDefault(x => x.Name == device) != null)
 					{
 						Program.frm.RebootPlayer(device);
 						ret = new { message = $"Reboot of {device} Successful" };

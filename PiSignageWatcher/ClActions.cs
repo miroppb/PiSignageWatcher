@@ -1,55 +1,55 @@
 ﻿using Dapper.Contrib.Extensions;
-using PiSignageWatcher.JSON;
 using System;
 
 public enum ScheduleActions { TurnOffTV, TurnOnTV, Reboot, DeployPlaylist };
 
 class ClSettings
 {
-    public int id { get; set; }
-    public string user { get; set; }
-	public string pass { get; set; }
-	public string api { get; set; }
-	public string prowl { get; set; }
-    public string path { get; set; }
+	public int Id { get; set; }
+	public string User { get; set; }
+	public string Pass { get; set; }
+	public string Api { get; set; }
+	public string Prowl { get; set; }
+	public string Path { get; set; }
+    public string Otp { get; set; }
 }
 
 class ClFiles
 {
-	public string filename { get; set; }
-	public string playlist { get; set; }
+	public string Filename { get; set; }
+	public string Playlist { get; set; }
 }
 
 [Table("schedule")]
 class ClSchedule
 {
-	public int id { get; set; }
-	public string name { get; set; }
+	public int Id { get; set; }
+	public string Name { get; set; }
 	[Computed]
-	public ClPlayer player { get; set; }
-	public string day { get; set; }
-	public string time { get; set; }
-	public string action { get; set; }
-	public string subaction { get; set; }
+	public ClPlayer Player { get; set; }
+	public string Day { get; set; }
+	public string Time { get; set; }
+	public string Action { get; set; }
+	public string Subaction { get; set; }
 }
 
 public class ClPlayer
 {
-	public string name { get; set; }
-	public string hex { get; set; }
+	public string Name { get; set; }
+	public string Hex { get; set; }
 }
 
 class ClDeployOptions
 {
-	public bool deploy { get; set; } = true;
-	public string orientation { get; set; } = "landscape";
-	public string resolution { get; set; } = "auto";
-	public bool exportAssets { get; set; } = false;
-	public string[] assets { get; set; }
+	public bool Deploy { get; set; } = true;
+	public string Orientation { get; set; } = "landscape";
+	public string Resolution { get; set; } = "auto";
+	public bool ExportAssets { get; set; } = false;
+	public string[] Assets { get; set; }
 
 	public override string ToString()
 	{
-		return $"deploy: {deploy}, orientation: {orientation}, resolution: {resolution}, exportAssets: {exportAssets}, assets: {String.Join(", ", assets)}";
+		return $"deploy: {Deploy}, orientation: {Orientation}, resolution: {Resolution}, exportAssets: {ExportAssets}, assets: {string.Join(", ", Assets)}";
 	}
 }
 
@@ -62,5 +62,16 @@ public class ClTVStatus
 public class ClStatus
 {
 	public bool IsOnline { get; set; }
-	public bool cecStatus { get; set; }
+	public bool CecStatus { get; set; }
+}
+
+class Layouts
+{
+    public int Id { get; set; }
+    public string Playlist { get; set; }
+    public bool Fullscreen { get; set; }
+    public string Side { get; set; }
+    public string Bottom { get; set; }
+    public string Zone4 { get; set; }
+    public string Zone5 { get; set; }
 }
