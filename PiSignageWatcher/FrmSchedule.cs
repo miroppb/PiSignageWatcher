@@ -1,14 +1,15 @@
-﻿using Dapper;
-using Dapper.Contrib.Extensions;
+﻿using Dapper.Contrib.Extensions;
 using MySqlConnector;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Windows.Forms;
 
 namespace PiSignageWatcher
 {
+	[SupportedOSPlatform("windows")]
 	public partial class FrmSchedule : Form
 	{
 		private readonly BindingList<ClSchedule> Schedules = new BindingList<ClSchedule>();

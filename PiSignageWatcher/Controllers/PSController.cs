@@ -4,12 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Versioning;
 
 namespace PiSignageWatcher.Controllers
 {
 	[EnableCors("Policy")]
 	[Route("api")]
 	[ApiController]
+	[SupportedOSPlatform("windows")]
 	public class PSController : ControllerBase
 	{
 		[HttpGet]
@@ -76,11 +78,11 @@ namespace PiSignageWatcher.Controllers
 					switch (device)
 					{
 						case "off":
-							Program.frm.offToolStripMenuItem_Click(null, null);
+							Program.frm.OffToolStripMenuItem_Click(null, null);
 							ret = new { message = "Power Off sent" };
 							break;
 						case "on":
-							Program.frm.onToolStripMenuItem_Click(null, null);
+							Program.frm.OnToolStripMenuItem_Click(null, null);
 							ret = new { message = "Power On sent" };
 							break;
 						default:

@@ -68,14 +68,14 @@
 			checkNowToolStripMenuItem.Name = "checkNowToolStripMenuItem";
 			checkNowToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
 			checkNowToolStripMenuItem.Text = "Check Now";
-			checkNowToolStripMenuItem.Click += checkNowToolStripMenuItem_Click;
+			checkNowToolStripMenuItem.Click += CheckNowToolStripMenuItem_Click;
 			// 
 			// showPlayerIDsToolStripMenuItem
 			// 
 			showPlayerIDsToolStripMenuItem.Name = "showPlayerIDsToolStripMenuItem";
 			showPlayerIDsToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
 			showPlayerIDsToolStripMenuItem.Text = "Show Player IDs";
-			showPlayerIDsToolStripMenuItem.Click += showPlayerIDsToolStripMenuItem_Click;
+			showPlayerIDsToolStripMenuItem.Click += ShowPlayerIDsToolStripMenuItem_Click;
 			// 
 			// reDeplotToolStripMenuItem
 			// 
@@ -102,14 +102,14 @@
 			onToolStripMenuItem.Name = "onToolStripMenuItem";
 			onToolStripMenuItem.Size = new System.Drawing.Size(113, 26);
 			onToolStripMenuItem.Text = "On";
-			onToolStripMenuItem.Click += onToolStripMenuItem_Click;
+			onToolStripMenuItem.Click += OnToolStripMenuItem_Click;
 			// 
 			// offToolStripMenuItem
 			// 
 			offToolStripMenuItem.Name = "offToolStripMenuItem";
 			offToolStripMenuItem.Size = new System.Drawing.Size(113, 26);
 			offToolStripMenuItem.Text = "Off";
-			offToolStripMenuItem.Click += offToolStripMenuItem_Click;
+			offToolStripMenuItem.Click += OffToolStripMenuItem_Click;
 			// 
 			// rebootToolStripMenuItem
 			// 
@@ -149,14 +149,14 @@
 			scheduleToolStripMenuItem.Name = "scheduleToolStripMenuItem";
 			scheduleToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
 			scheduleToolStripMenuItem.Text = "Schedule";
-			scheduleToolStripMenuItem.Click += scheduleToolStripMenuItem_Click;
+			scheduleToolStripMenuItem.Click += ScheduleToolStripMenuItem_Click;
 			// 
 			// exitToolStripMenuItem
 			// 
 			exitToolStripMenuItem.Name = "exitToolStripMenuItem";
 			exitToolStripMenuItem.Size = new System.Drawing.Size(210, 24);
 			exitToolStripMenuItem.Text = "Exit";
-			exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
+			exitToolStripMenuItem.Click += ExitToolStripMenuItem_Click;
 			// 
 			// FrmMain
 			// 
